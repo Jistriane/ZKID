@@ -1,0 +1,41 @@
+{
+  "name": "zkid-stellar-monorepo",
+  "private": true,
+  "workspaces": [
+    "frontend/zkid-app",
+    "sdk/zkid-sdk",
+    "packages/*",
+    "eliza_bot"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:contracts\" \"npm run dev:frontend\"",
+    "dev:frontend": "npm run -w zkid-app dev",
+    "dev:contracts": "npm run build:clients -- --watch",
+    "build": "npm run build:contracts && npm run build:clients && npm run -ws build",
+    "build:contracts": "stellar contract build --package verifier && stellar contract build --package credential_registry && stellar contract build --package compliance_oracle",
+    "build:clients": "stellar contract bindings typescript --contract-id verifier --output-dir packages/verifier --overwrite && stellar contract bindings typescript --contract-id credential_registry --output-dir packages/credential_registry --overwrite && stellar contract bindings typescript --contract-id compliance_oracle --output-dir packages/compliance_oracle --overwrite",
+    "optimize:contracts": "stellar contract optimize --wasm target/wasm32v1-none/release/verifier.wasm && stellar contract optimize --wasm target/wasm32v1-none/release/credential_registry.wasm && stellar contract optimize --wasm target/wasm32v1-none/release/compliance_oracle.wasm",
+    "test": "npm run -w zkid-sdk test",
+    "test:contracts": "cargo test --workspace",
+    "deploy:testnet": "bash scripts/auto-deploy.sh testnet",
+    "deploy:mainnet": "bash scripts/auto-deploy.sh mainnet",
+    "typecheck": "npm run -ws build --if-present && echo typecheck done",
+    "lint": "eslint . --ext .ts,.tsx --max-warnings=0",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "clean": "git clean -fdx -e node_modules",
+    "install:contracts": "npm install --workspace=packages && npm run build --workspace=packages",
+    "eliza:dev": "npm run -w eliza_bot dev",
+    "eliza:start": "npm run -w eliza_bot start",
+    "eliza:build": "npm run -w eliza_bot build"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "concurrently": "^9.2.1",
+    "eslint": "^8.57.0",
+    "prettier": "^3.3.3"
+  },
+  "dependencies": {
+    "circomlib": "^2.0.5"
+  }
+}

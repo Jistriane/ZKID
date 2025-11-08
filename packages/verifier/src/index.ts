@@ -31,12 +31,7 @@ if (typeof window !== 'undefined') {
 }
 
 
-export const networks = {
-  testnet: {
-    networkPassphrase: "Test SDF Network ; September 2015",
-    contractId: "CA5C6U752JA2MRKC6ZRNIAGOXA53NAWJUW2MI2TNXFIMWZYHGTOSR5EQ",
-  }
-} as const
+
 
 
 export interface Groth16Proof {

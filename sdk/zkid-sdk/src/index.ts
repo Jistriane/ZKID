@@ -113,3 +113,6 @@ export function hashProof(_art: ProofArtifacts): string {
     return 'mock-proof-hash'
   }
 }
+
+// Re-export contract clients for convenience
+export * from './client/contracts';
