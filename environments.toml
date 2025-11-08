@@ -1,0 +1,55 @@
+### Development environment configuration
+[development.network]
+rpc-url = "https://soroban-testnet.stellar.org"
+network-passphrase = "Test SDF Network ; September 2015"
+# run-locally = true # Desabilitado: requer Docker
+
+[[development.accounts]]
+name = "admin"
+default = true
+
+[[development.accounts]]
+name = "issuer"
+
+[[development.accounts]]
+name = "user"
+
+[development.contracts]
+# ZK Verifier Contract - Validates Groth16 proofs on-chain
+verifier = { client = true, constructor_args = "" }
+
+# Credential Registry - Issues non-transferable credential NFTs
+credential_registry = { client = true, constructor_args = "--admin admin --verifier_contract verifier" }
+
+# Compliance Oracle - Checks sanctions lists and regulatory compliance
+compliance_oracle = { client = true, constructor_args = "--admin admin" }
+
+### Testnet environment configuration
+[testnet.network]
+rpc-url = "https://soroban-testnet.stellar.org"
+network-passphrase = "Test SDF Network ; September 2015"
+
+[[testnet.accounts]]
+name = "testnet-deployer"
+default = true
+
+[testnet.contracts]
+# Deploy to testnet and specify contract IDs here after deployment
+verifier = { id = "CBMUOMXPCWVYYA75GR6AIJTMUR3W6VOBUQCXJ5GDPRURKDETODUKJWSC" }
+credential_registry = { id = "CB4F5NMRYZ5GYTRPUOYDIU27J23NDNQCAWXZMAOWQ75OWQM7KOMAV7J5" }
+compliance_oracle = { id = "CDVZI3V7S3RIV3INQQRAPMR4FKIQJPR7NRJMDWET6LOSGBMFFCLLERVM" }
+
+### Production environment configuration (Mainnet)
+[production.network]
+rpc-url = "https://soroban-mainnet.stellar.org"
+network-passphrase = "Public Global Stellar Network ; September 2015"
+
+[[production.accounts]]
+name = "mainnet-deployer"
+default = true
+
+[production.contracts]
+# Production contract IDs will be specified here after mainnet deployment
+# verifier = { id = "C..." }
+# credential_registry = { id = "C..." }
+# compliance_oracle = { id = "C..." }

@@ -1,0 +1,6 @@
+version: '3.8'
+services:
+  # Placeholder: configurar serviços locais (ex.: soroban rpc/horizon simulados) se necessário
+  notes:
+    image: alpine:3.19
+    command: ["sh", "-lc", "echo 'Configure aqui serviços locais quando necessário.' && sleep 3600"]

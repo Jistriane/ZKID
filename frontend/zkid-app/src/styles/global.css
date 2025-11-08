@@ -1,0 +1,197 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Theme tokens */
+:root {
+  --bg-start: #0b1020;
+  --bg-end: #0f172a;
+  --accent: #6d6cff;
+  --accent-2: #00E5FF;
+  --card: rgba(255, 255, 255, 0.06);
+  --stroke: rgba(255, 255, 255, 0.08);
+}
+
+/* App background: subtle gradient + grid */
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  @apply bg-gradient-to-br from-[#0b1020] to-[#0f172a] text-white antialiased;
+  background-attachment: fixed;
+}
+
+.bg-grid {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px);
+  background-size: 24px 24px;
+  mask-image: radial-gradient(ellipse at center, black 40%, transparent 70%);
+}
+
+/* Typography helpers for graceful fallback when needed */
+h1, h2, h3, p { @apply font-sans; }
+h1 { @apply text-3xl sm:text-4xl md:text-5xl font-bold leading-tight; }
+h2 { @apply text-2xl sm:text-3xl font-semibold leading-snug; }
+h3 { @apply text-xl sm:text-2xl font-semibold; }
+p  { @apply text-base text-slate-300; }
+
+/* Grid Layouts */
+.grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 768px) {
+  .grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .grid-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    gap: 1.5rem;
+  }
+}
+
+/* Auto-fit grid for flexible columns */
+.grid-auto {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+@media (min-width: 1024px) {
+  .grid-auto {
+    gap: 1.5rem;
+  }
+}
+
+/* Glass card */
+.card {
+  @apply bg-white/5 border border-white/10 rounded-xl p-6 backdrop-blur-md transition-all duration-200;
+}
+.card:hover {
+  @apply -translate-y-0.5 shadow-glow;
+}
+
+/* Buttons (fallback classes if needed) */
+.btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 font-semibold transition-all duration-200; }
+.btn-primary { @apply bg-primary/90 text-white hover:bg-primary shadow-glow; }
+.btn-secondary { @apply bg-white/10 text-white border border-white/20 hover:bg-white/15; }
+.btn-danger { @apply bg-red-600 text-white hover:bg-red-700; }
+.btn:disabled { @apply opacity-50 cursor-not-allowed shadow-none translate-y-0; }
+
+/* Forms */
+.form-group { @apply mb-6; }
+.form-label { @apply block mb-2 text-sm font-semibold text-slate-200; }
+.form-input, .form-select { @apply w-full bg-white/5 text-white placeholder-slate-400 border border-white/10 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50; }
+.form-hint { @apply mt-1 text-xs text-slate-400; }
+
+/* Alerts */
+.alert { @apply mt-4 rounded-lg px-4 py-3 text-sm; }
+.alert-success { @apply bg-emerald-500/15 text-emerald-300 border border-emerald-500/20; }
+.alert-info { @apply bg-primary/15 text-primary-200 border border-primary/20; }
+.alert-warning { @apply bg-amber-500/15 text-amber-200 border border-amber-500/20; }
+.alert-error { @apply bg-red-500/15 text-red-300 border border-red-500/20; }
+
+/* Badges */
+.badge { @apply inline-block rounded-full px-3 py-1 text-xs font-semibold; }
+.badge-success { @apply bg-emerald-500/15 text-emerald-300 border border-emerald-400/30; }
+.badge-warning { @apply bg-amber-500/15 text-amber-200 border border-amber-400/30; }
+.badge-error { @apply bg-red-500/15 text-red-300 border border-red-400/30; }
+
+/* Stats */
+.stats-grid { @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8; }
+.stat-card { @apply card; }
+.stat-label { @apply text-sm text-slate-400 mb-1; }
+.stat-value { @apply text-3xl md:text-4xl font-bold text-primary; }
+
+/* We rely on Tailwind utilities for spacing/flex/grid */
+
+/* Tailwind spacing utilities already available */
+
+/* Tailwind text utilities already available */
+
+img { @apply max-w-full h-auto; }
+
+/* Code Blocks */
+code { @apply font-mono bg-white/5 rounded px-1 py-0.5 text-sm break-words; }
+pre { @apply bg-white/5 rounded-lg p-4 overflow-x-auto text-sm; }
+
+/* List Styles */
+ul {
+  list-style: none;
+  padding: 0;
+}
+
+ul.bulleted {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+
+ol {
+  padding-left: 1.5rem;
+}
+
+a { @apply text-primary hover:underline; }
+
+/* Divider */
+hr {
+  border: none;
+  border-top: 1px solid #e0e0e0;
+  margin: 2rem 0;
+}
+
+/* Scrollbar Styling (Webkit) */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.35); }
+
+/* Loading Spinner */
+.spinner { @apply w-10 h-10 border-2 border-white/10 border-t-primary rounded-full animate-spin mx-auto my-8; }
+
+/* Mobile Menu Toggle */
+.mobile-menu-toggle { @apply block text-2xl p-2 text-white md:hidden; }
+
+/* Hide/Show on Mobile */
+.mobile-only { @apply block md:hidden; }
+.desktop-only { @apply hidden md:block; }
+
+/* Touch-friendly spacing on mobile */
+@media (max-width: 640px) {
+  button,
+  a.btn,
+  .clickable {
+    min-height: 44px; /* iOS recommended touch target */
+    min-width: 44px;
+  }
+}
+
+/* Prevent text overflow */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Two-column layout */
+.two-column { @apply grid grid-cols-1 gap-4 md:grid-cols-[1fr_2fr] md:gap-8; }
+
+/* Width helpers preserved via Tailwind */
+
