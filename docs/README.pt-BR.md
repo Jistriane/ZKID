@@ -205,6 +205,46 @@ Todas funções falíveis retornam `Result<_, ErrorEnum>` evitando `panic!`.
 
 Perfil de release usa `opt-level="z"`, LTO e stripping.
 
+---
+
+## Integração Scaffold Stellar
+
+Este repositório utiliza configuração estilo Scaffold para gerar automaticamente clientes TypeScript tipados dos contratos Soroban.
+
+- Config central: `stellar.toml` declara ambientes, comandos de build e IDs deployados.
+- Clientes gerados: `packages/<contrato>` contendo classe `Client` com métodos tipados que retornam `AssembledTransaction<T>`.
+- SDK: `sdk/zkid-sdk/src/client/contracts.ts` re-exporta como `VerifierClient`, `CredentialRegistryClient`, `ComplianceOracleClient`.
+- Frontend: serviços encapsulam `signAndSend` com um signer (Freighter ou fallback passkey) oferecendo funções de alto nível.
+
+Uso rápido:
+
+```ts
+import { VerifierClient } from 'zkid-sdk/client/contracts';
+import { Networks } from '@stellar/stellar-sdk';
+
+const verifier = new VerifierClient({
+  contractId: 'CBMUOMXPCW...JWSC',
+  networkPassphrase: Networks.TESTNET,
+  rpcUrl: 'https://soroban-testnet.stellar.org'
+});
+
+const versao = await (await verifier.version()).simulate();
+
+const signer = await getWalletSigner();
+const tx = await verifier.verify_identity_proof(Buffer.from(prova), Buffer.from(inputs));
+const resultado = await tx.signAndSend(signer);
+```
+
+Regenerar clientes após alterar contratos:
+
+```bash
+make build
+npm run build:clients
+npm run build -w sdk/zkid-sdk
+```
+
+Benefícios: tipagem forte, regeneração simples, integração frontend direta, redução de erros de encoding.
+
 ## Próximos Passos de Endurecimento (Security Hardening)
 - Ancorar hash da verification key + versão.  
 - Adicionar separador de domínio nos public inputs.  

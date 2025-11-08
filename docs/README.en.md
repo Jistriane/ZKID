@@ -203,3 +203,41 @@ All fallible functions return `Result<_, ErrorEnum>` and avoid `panic!`.
 | compliance_oracle.wasm | ~6.9 KB |
 
 Release profile uses `opt-level="z"`, LTO, and symbol stripping.
+
+---
+
+## Scaffold Stellar Integration
+
+This repository is wired with a Scaffold-style setup to generate and consume typed TS clients for Soroban contracts.
+
+- Central config: `stellar.toml` defines networks, build commands and deployed IDs.
+- Clients: generated to `packages/<contract>` with a `Client` class exposing typed methods.
+- SDK shim: `sdk/zkid-sdk/src/client/contracts.ts` re-exports clients as `VerifierClient`, `CredentialRegistryClient`, `ComplianceOracleClient`.
+- Frontend: services wrap `signAndSend` with a wallet signer (Freighter or passkey fallback) and provide simple functions like `verifyIdentityProofService`.
+
+Quick usage:
+
+```ts
+import { VerifierClient } from 'zkid-sdk/client/contracts';
+import { Networks } from '@stellar/stellar-sdk';
+
+const verifier = new VerifierClient({
+  contractId: 'CBMUOMXPCW...JWSC',
+  networkPassphrase: Networks.TESTNET,
+  rpcUrl: 'https://soroban-testnet.stellar.org'
+});
+
+const version = await (await verifier.version()).simulate();
+
+const signer = await getWalletSigner();
+const tx = await verifier.verify_identity_proof(Buffer.from(proof), Buffer.from(inputs));
+const res = await tx.signAndSend(signer);
+```
+
+Regenerate clients after contract changes:
+
+```bash
+make build
+npm run build:clients
+npm run build -w sdk/zkid-sdk
+```

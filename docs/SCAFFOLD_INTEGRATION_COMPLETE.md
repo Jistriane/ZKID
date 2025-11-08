@@ -11,6 +11,11 @@ Integração completa do Scaffold Stellar ao projeto ZKID, utilizando as ferrame
 Arquivo de configuração centralizada para todos os contratos e ambientes:
 
 ```toml
+[global]
+network = "testnet"
+network_passphrase = "Test SDF Network ; September 2015"
+rpc_url = "https://soroban-testnet.stellar.org"
+
 [environments.testnet]
 network = "testnet"
 network_passphrase = "Test SDF Network ; September 2015"
@@ -22,8 +27,10 @@ credential_registry = { id = "CB4F5NMRYZ5GYTRPUOYDIU27J23NDNQCAWXZMAOWQ75OWQM7KO
 compliance_oracle = { id = "CDVZI3V7S3RIV3INQQRAPMR4FKIQJPR7NRJMDWET6LOSGBMFFCLLERVM" }
 
 [client]
-type_script = true
-output_dir = "./packages"
+output_dir = "packages"
+languages = ["typescript"]
+[client.typescript]
+generate_clients = true
 ```
 
 ### 2. Scripts de Build Atualizados (`package.json`)
@@ -154,12 +161,12 @@ ZKID Stellar/
 
 ```bash
 # Build dos contratos Rust
-npm run build:contracts
+make build
 
 # Gerar clientes TypeScript
 npm run build:clients
 
-# Instalar e compilar pacotes gerados
+# Instalar e compilar pacotes gerados (se necessário)
 cd packages/verifier && npm install && npm run build
 cd ../credential_registry && npm install && npm run build
 cd ../compliance_oracle && npm install && npm run build
@@ -182,7 +189,7 @@ const verifier = new VerifierClient({
 
 // Chamar método
 const versionTx = await verifier.version();
-const version = await versionTx.signAndSend();
+const version = await versionTx.simulate();
 ```
 
 ### 3. Integrar no Frontend
@@ -205,10 +212,10 @@ import { VerifierClient } from 'zkid-sdk/client/contracts';
 
 ## Próximos Passos
 
-1. **Frontend Integration** - Integrar clientes gerados no zkid-app
-2. **Testing** - Adicionar testes usando os clientes TypeScript
-3. **Wallet Connection** - Implementar assinatura via Freighter/Albedo
-4. **Production Deploy** - Deploy em mainnet e atualizar stellar.toml
+1. **Frontend Integration** - Já integrada com serviços e `getWalletSigner`
+2. **Testing** - Adicionar testes para serviços (`services/contracts.ts`)
+3. **Observabilidade** - Painel de diagnóstico (latência RPC, versões de contrato)
+4. **Production Deploy** - Ao migrar para mainnet, preencher IDs em `[environments.production.contracts]`
 
 ## Comandos Úteis
 
@@ -240,6 +247,12 @@ stellar contract inspect --wasm target/wasm32v1-none/release/verifier.wasm
 
 ---
 
+### Notas Adicionais
+
+- Assinatura real com carteira: o frontend injeta um signer compatível com `signAndSend` (Freighter ou fallback passkey) retornando `{ publicKey, signTransaction(xdr) }`.
+- Code splitting: `vite.config.ts` usa `manualChunks` para isolar `@stellar/stellar-sdk`, `snarkjs` e o SDK.
+- Lint/CI: código gerado é ignorado em lint; workflow não falha em warnings enquanto warnings são reduzidos no código de aplicação.
+
 **Status**: ✅ Integração Completa  
 **Data**: 2025  
-**Ferramentas**: Stellar CLI v23.1.4, TypeScript 5.6.2, Stellar SDK 14.1.1
+**Ferramentas**: Stellar CLI v23.1.4, TypeScript 5.6.x, Stellar SDK 14.1.x

@@ -308,3 +308,112 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 - Issues: GitHub Issues
 - Discussions: GitHub Discussions
 - Email: (to be added)
+
+---
+
+## 🧩 Scaffold Stellar Integration
+
+This project uses a Scaffold-style configuration to centralize Soroban contract metadata and generate typed TypeScript clients automatically.
+
+### Configuration File
+The `stellar.toml` at the repository root declares networks, contract build commands and deployed IDs:
+
+```toml
+[global]
+network = "testnet"
+rpc_url = "https://soroban-testnet.stellar.org"
+network_passphrase = "Test SDF Network ; September 2015"
+
+[contracts.verifier]
+path = "contracts/verifier"
+build_command = "stellar contract build --package verifier"
+wasm_path = "target/wasm32v1-none/release/verifier.wasm"
+
+[contracts.credential_registry]
+path = "contracts/credential-registry"
+build_command = "stellar contract build --package credential_registry"
+wasm_path = "target/wasm32v1-none/release/credential_registry.wasm"
+
+[contracts.compliance_oracle]
+path = "contracts/compliance-oracle"
+build_command = "stellar contract build --package compliance_oracle"
+wasm_path = "target/wasm32v1-none/release/compliance_oracle.wasm"
+
+[environments.testnet.contracts]
+verifier = { id = "CBMUOMXPCWVYYA75GR6AIJTMUR3W6VOBUQCXJ5GDPRURKDETODUKJWSC" }
+credential_registry = { id = "CB4F5NMRYZ5GYTRPUOYDIU27J23NDNQCAWXZMAOWQ75OWQM7KOMAV7J5" }
+compliance_oracle = { id = "CDVZI3V7S3RIV3INQQRAPMR4FKIQJPR7NRJMDWET6LOSGBMFFCLLERVM" }
+
+[client]
+output_dir = "packages"
+languages = ["typescript"]
+[client.typescript]
+generate_clients = true
+```
+
+### Generated Contract Clients
+Clients are produced under `packages/` (one folder per contract) via Stellar CLI bindings:
+
+```bash
+stellar contract bindings typescript \
+  --wasm target/wasm32v1-none/release/verifier.wasm \
+  --output-dir packages/verifier --overwrite
+```
+
+Repeat for each contract (credential_registry, compliance_oracle). They expose a `Client` class with typed methods returning `AssembledTransaction<T>` objects supporting `simulate()` and `signAndSend(signer)`.
+
+### SDK Re-Exports
+The SDK (`sdk/zkid-sdk/src/client/contracts.ts`) re-exports the generated clients to avoid dependency duplication:
+
+```ts
+export { Client as VerifierClient } from 'verifier';
+export { Client as CredentialRegistryClient } from 'credential_registry';
+export { Client as ComplianceOracleClient } from 'compliance_oracle';
+```
+
+### Frontend Usage
+Instantiate clients with contract IDs and passphrase, inject a wallet signer (Freighter / fallback passkey) and call methods:
+
+```ts
+import { VerifierClient } from 'zkid-sdk/client/contracts';
+import { Networks } from '@stellar/stellar-sdk';
+
+const verifier = new VerifierClient({
+  contractId: process.env.VERIFIER_ID!,
+  networkPassphrase: Networks.TESTNET,
+  rpcUrl: 'https://soroban-testnet.stellar.org'
+});
+
+// Example read (no signature)
+const version = await (await verifier.version()).simulate();
+
+// Example write (with signer)
+const signer = await getWalletSigner(); // returns { publicKey, signTransaction(xdr) }
+const tx = await verifier.verify_identity_proof(proofBytes, publicInputsBytes);
+const result = await tx.signAndSend(signer);
+```
+
+### Regeneration Workflow
+Run after any contract logic change:
+
+```bash
+make build            # builds Rust contracts (wasm32v1-none)
+npm run build:clients  # regenerates TypeScript clients
+npm run build -w sdk/zkid-sdk  # rebuild SDK consuming clients
+```
+
+### Wallet Signing Abstraction
+Frontend wraps Freighter or a deterministic passkey fallback returning `{ signTransaction(xdr), publicKey }`, passed directly into `signAndSend`.
+
+### Code Splitting
+`vite.config.ts` uses `manualChunks` to isolate heavy dependencies (`@stellar/stellar-sdk`, `snarkjs`, contract clients), improving initial load.
+
+### Benefits
+- Strong type safety for all contract calls
+- Easy regeneration when contracts evolve
+- Cleaner imports via SDK shim
+- Reduced integration friction for frontend & tests
+
+If deploying to mainnet later, add the new IDs to `[environments.production.contracts]` in `stellar.toml` and rebuild clients.
+
+---
