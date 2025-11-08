@@ -1,0 +1,9 @@
+# Ignore generated and external code
+packages/**
+target/**
+sdk/zkid-sdk/dist/**
+eliza_bot/src/__tests__/**
+eliza_bot/src/cypress/**
+eliza_bot/src/__tests__/cypress/**
+**/node_modules/**
+**/dist/**

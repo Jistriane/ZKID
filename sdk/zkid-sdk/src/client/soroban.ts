@@ -1,4 +1,5 @@
 import type { ZkidConfig } from '..'
+import { Buffer } from 'buffer'
 
 export type VerifyRequest = {
   proof: unknown
@@ -21,12 +22,10 @@ export async function verifyIdentityProof(cfg: ZkidConfig, req: VerifyRequest): 
     const enc = new TextEncoder()
     
     // Construir chamada ao contrato Verifier.verify_identity_proof
-    const proofBytes = StellarSdk.xdr.ScVal.scvBytes(
-      enc.encode(JSON.stringify(req.proof)) as any
-    )
-    const publicBytes = StellarSdk.xdr.ScVal.scvBytes(
-      enc.encode(JSON.stringify(req.publicSignals)) as any
-    )
+    const proofEncoded: Uint8Array = enc.encode(JSON.stringify(req.proof))
+    const publicEncoded: Uint8Array = enc.encode(JSON.stringify(req.publicSignals))
+  const proofBytes = StellarSdk.xdr.ScVal.scvBytes(Buffer.from(proofEncoded))
+  const publicBytes = StellarSdk.xdr.ScVal.scvBytes(Buffer.from(publicEncoded))
     
     // Buscar conta source (precisa existir no ledger)
     const sourceKeypair = StellarSdk.Keypair.random() // Em produção: vem do wallet
@@ -71,7 +70,7 @@ export async function issueCredential(cfg: ZkidConfig, req: IssueRequest): Promi
     
     // Construir parâmetros ScVal
     const ownerAddress = new StellarSdk.Address(req.ownerPasskey)
-    const proofHashBytes = StellarSdk.xdr.ScVal.scvBytes(hexToBytes(req.proofHash) as any)
+  const proofHashBytes = StellarSdk.xdr.ScVal.scvBytes(Buffer.from(hexToBytes(req.proofHash)))
     const ttlU32 = StellarSdk.xdr.ScVal.scvU32(req.ttlSeconds)
     
     // Buscar conta source
@@ -80,7 +79,7 @@ export async function issueCredential(cfg: ZkidConfig, req: IssueRequest): Promi
     
     // Construir transaction
     const contract = new StellarSdk.Contract(cfg.registryId)
-    let tx = new StellarSdk.TransactionBuilder(sourceAccount, {
+  const tx = new StellarSdk.TransactionBuilder(sourceAccount, {
       fee: StellarSdk.BASE_FEE,
       networkPassphrase: StellarSdk.Networks.TESTNET
     })
@@ -115,17 +114,24 @@ export async function issueCredential(cfg: ZkidConfig, req: IssueRequest): Promi
       if (getResponse.status === StellarSdk.SorobanRpc.Api.GetTransactionStatus.SUCCESS) {
         // Tentar extrair retorno; caso contrário, usa fallback sintético
         try {
-          const resultVal: any = (getResponse as any).returnValue
+          // retorno não tipado; manter como unknown
+          const resultVal: unknown = (getResponse as { returnValue?: unknown }).returnValue
           if (resultVal) {
             // Preferir helper scValToNative quando disponível
-            const native = (StellarSdk as any).scValToNative
-              ? (StellarSdk as any).scValToNative(resultVal)
-              : undefined
+            const scValToNative: ((v: unknown) => unknown) | undefined =
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (StellarSdk as any).scValToNative ? (StellarSdk as { scValToNative?: (v: unknown) => unknown }).scValToNative : undefined
+            const native = scValToNative ? scValToNative(resultVal) : undefined
             if (typeof native === 'string') {
               return native
             }
           }
-        } catch {}
+        } catch (extractErr) {
+          // Ignora falha ao extrair valor de retorno – usa fallback sintético
+          if (process.env.NODE_ENV === 'development') {
+            console.debug('[soroban] issueCredential return extraction error:', extractErr)
+          }
+        }
       }
     }
     
@@ -147,9 +153,10 @@ export async function setComplianceExplanation(cfg: ZkidConfig, params: { admin:
     const contract = new StellarSdk.Contract(cfg.complianceId)
 
     const owner = new StellarSdk.Address(params.admin)
-    const proofHash = StellarSdk.xdr.ScVal.scvBytes(hexToBytes(params.proofHashHex) as any)
-    const expHash = StellarSdk.xdr.ScVal.scvBytes(hexToBytes(params.explanationHashHex) as any)
-    const uriBytes = params.uri ? StellarSdk.xdr.ScVal.scvBytes(new TextEncoder().encode(params.uri) as any) : StellarSdk.xdr.ScVal.scvVoid()
+  const proofHash = StellarSdk.xdr.ScVal.scvBytes(Buffer.from(hexToBytes(params.proofHashHex)))
+  const expHash = StellarSdk.xdr.ScVal.scvBytes(Buffer.from(hexToBytes(params.explanationHashHex)))
+  const uriEncoded: Uint8Array | null = params.uri ? new TextEncoder().encode(params.uri) : null
+  const uriBytes = uriEncoded ? StellarSdk.xdr.ScVal.scvBytes(Buffer.from(uriEncoded)) : StellarSdk.xdr.ScVal.scvVoid()
 
     const kp = StellarSdk.Keypair.random()
     const acc = await server.getAccount(kp.publicKey())
@@ -177,20 +184,26 @@ export async function getComplianceExplanation(cfg: ZkidConfig, proofHashHex: st
 
     const kp = StellarSdk.Keypair.random()
     const acc = await server.getAccount(kp.publicKey())
-    const proofHash = StellarSdk.xdr.ScVal.scvBytes(hexToBytes(proofHashHex) as any)
+  const proofHash = StellarSdk.xdr.ScVal.scvBytes(Buffer.from(hexToBytes(proofHashHex)))
     const tx = new StellarSdk.TransactionBuilder(acc, { fee: StellarSdk.BASE_FEE, networkPassphrase: StellarSdk.Networks.TESTNET })
       .addOperation(contract.call('get_explanation', proofHash))
       .setTimeout(180)
       .build()
     const sim = await server.simulateTransaction(tx)
-    if ((StellarSdk as any).SorobanRpc.Api.isSimulationSuccess(sim)) {
-      const v: any = (sim as any).result?.retval
+    const isSimSuccess: ((s: unknown) => boolean) | undefined =
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (StellarSdk as any).SorobanRpc?.Api?.isSimulationSuccess
+    if (isSimSuccess && isSimSuccess(sim)) {
+      const v: unknown = (sim as { result?: { retval?: unknown } }).result?.retval
       if (!v) return null
-      const native = (StellarSdk as any).scValToNative ? (StellarSdk as any).scValToNative(v) : null
+      const scValToNative: ((val: unknown) => unknown) | undefined =
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (StellarSdk as any).scValToNative
+      const native = scValToNative ? scValToNative(v) : null
       if (native && typeof native === 'object') {
         // Espera forma { hash: Uint8Array, uri: Uint8Array | null }
-        const hash = native.hash as Uint8Array
-        const uri = native.uri as Uint8Array | null
+        const hash = (native as { hash?: Uint8Array }).hash as Uint8Array
+        const uri = (native as { uri?: Uint8Array | null }).uri as Uint8Array | null
         return { hashHex: bytesToHex(hash), uri: uri ? new TextDecoder().decode(uri) : undefined }
       }
     }
