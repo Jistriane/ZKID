@@ -75,7 +75,8 @@ export async function generateCountryProof(_input: CountryProofInput): Promise<P
 export type VerifyAndIssueRequest = {
   proof: unknown;
   publicSignals: unknown;
-  userPasskey: string; // placeholder para id da credencial passkey
+  userPasskey: string; // placeholder para id da credencial passkey (off-chain link)
+  userPublicKey: string; // Stellar account address que deve autorizar issue_credential
 };
 
 export async function verifyAndIssue(_req: VerifyAndIssueRequest): Promise<{ id: string }> {
@@ -85,7 +86,7 @@ export async function verifyAndIssue(_req: VerifyAndIssueRequest): Promise<{ id:
   if (!ok) throw new Error('Proof inválida')
   // 2) emitir credencial
   const proofHash = hashProof({ proof: _req.proof, publicSignals: _req.publicSignals })
-  const id = await import('./client/soroban').then(m => m.issueCredential(config, { ownerPasskey: _req.userPasskey, proofHash, ttlSeconds: 60*60*24*365 }))
+  const id = await import('./client/soroban').then(m => m.issueCredential(config, { ownerPublicKey: _req.userPublicKey, proofHash, ttlSeconds: 60*60*24*365 }))
   return { id }
 }
 
@@ -96,6 +97,8 @@ export type ZkidConfig = {
   verifierId: string;
   registryId: string;
   complianceId: string;
+  // Função opcional para assinar transações (ex: Freighter / Albedo). Recebe XDR não assinado e deve retornar XDR assinado.
+  signTransaction?: (xdr: string, opts: { networkPassphrase: string }) => Promise<string>;
 };
 
 let cfg: ZkidConfig | null = null;

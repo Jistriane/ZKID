@@ -8,9 +8,9 @@ const ALLOWED_COUNTRIES = ['BR', 'US', 'AR', 'MX', 'CL', 'CO', 'PE', 'UY']
 
 export function CountryProofPage() {
   const navigate = useNavigate()
-  const { isConnected, network, setNetwork } = useWallet()
+  const { isConnected, network, setNetwork, publicKey } = useWallet()
   const [country, setCountry] = useState('BR')
-  const [allowedList, setAllowedList] = useState(['BR', 'AR', 'UY'])
+  const [allowedList, setAllowedList] = useState<string[]>([...ALLOWED_COUNTRIES])
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
@@ -72,7 +72,8 @@ export function CountryProofPage() {
       const result = await verifyAndIssue({
         proof: proofResult.proof,
         publicSignals: proofResult.publicSignals,
-        userPasskey: passkey
+        userPasskey: passkey,
+        userPublicKey: publicKey as string
       })
 
       setCredentialId(result.id)

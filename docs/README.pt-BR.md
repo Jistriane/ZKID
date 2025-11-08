@@ -75,6 +75,40 @@ ZKID Stellar é uma plataforma de identidade e compliance voltada à privacidade
 - Git
 
 ## Início Rápido (Quickstart)
+
+### Inicialização com Um Comando (Recomendado)
+
+Inicie todo o sistema (frontend + bot) com um único comando:
+
+```bash
+bash scripts/start-all.sh --with-bot --no-test
+```
+
+Este script irá:
+1. Instalar todas as dependências (monorepo + SDK + frontend + bot)
+2. Compilar contratos Soroban e SDK
+3. Compilar circuitos ZK (ou pular com `--skip-circuits`)
+4. Iniciar servidor dev do frontend (http://localhost:5173)
+5. Iniciar Eliza bot (http://localhost:3000)
+
+**Flags disponíveis:**
+- `--with-bot` — Inicia também o Eliza bot junto com frontend
+- `--no-test` — Pula execução de testes (inicialização mais rápida)
+- `--skip-circuits` — Não recompila circuitos (usa artifacts existentes)
+- `--port <n>` — Porta customizada do frontend (padrão: 5173)
+- `--help` — Mostra todas as opções
+
+**Parar todos os serviços:**
+```bash
+# Use os PIDs mostrados no output do terminal
+kill <FRONTEND_PID> <BOT_PID>
+# Ou pressione Ctrl+C no terminal que está executando o script
+```
+
+### Inicialização Manual (Alternativa)
+
+Use o Makefile para controle passo-a-passo:
+
 ```bash
 make install
 make build
@@ -83,7 +117,12 @@ make app-dev
 # opcional
 npm run eliza:dev
 ```
+
 Acesse http://localhost:5173 para a dApp e http://localhost:3000 para ElizaOS.
+
+### Script Único de Inicialização
+
+**⚠️ Nota:** Esta seção foi movida para "Início Rápido (Quickstart)" acima. Consulte lá para detalhes completos sobre o `start-all.sh`.
 
 ## Guias Detalhados
 Ver `docs/` para guias completos. Resumo abaixo.
@@ -159,6 +198,9 @@ COMPLIANCE_ORACLE_ID=CDVZI3V7S3RIV3INQQRAPMR4FKIQJPR7NRJMDWET6LOSGBMFFCLLERVM
 | Prova inválida | VK diferente | Re-exportar VK e atualizar no Verifier |
 | Deploy falha | Conta sem fundos | Usar friendbot testnet |
 | Erro de argumentos CLI | Encoding incorreto | Usar SDK ou helpers base64/xdr |
+| Tela branca no frontend | Erro de exportação de módulo | Verificar console do navegador; garantir versões iguais de `@stellar/stellar-sdk` |
+| Warning React Router | Future flag não configurada | Verificar `future={{ v7_startTransition: true }}` no RouterProvider |
+| Warnings de interop no bot | Star exports nos pacotes de contrato | Não bloqueante; pode corrigir usando named exports |
 
 ## Segurança & Privacidade
 - Nenhum dado sensível bruto on-chain ou em servidor.  

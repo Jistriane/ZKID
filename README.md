@@ -78,7 +78,38 @@ Requirements:
 - Circom 2.1.5+ / snarkjs 0.7.4+
 - Git
 
-Use the provided Makefile for common flows:
+### One-Command Startup (Recommended)
+
+Start the entire system (frontend + bot) with a single command:
+
+```bash
+bash scripts/start-all.sh --with-bot --no-test
+```
+
+This script will:
+1. Install all dependencies (monorepo + SDK + frontend + bot)
+2. Build Soroban contracts and SDK
+3. Compile ZK circuits (or skip with `--skip-circuits`)
+4. Start frontend dev server (http://localhost:5173)
+5. Start Eliza bot (http://localhost:3000)
+
+**Available flags:**
+- `--with-bot` — Start Eliza bot alongside frontend
+- `--no-test` — Skip test execution (faster startup)
+- `--skip-circuits` — Don't recompile circuits (use existing artifacts)
+- `--port <n>` — Custom frontend port (default: 5173)
+- `--help` — Show all options
+
+**Stop all services:**
+```bash
+# Use the PIDs shown in terminal output
+kill <FRONTEND_PID> <BOT_PID>
+# Or press Ctrl+C in the terminal running the script
+```
+
+### Manual Startup (Alternative)
+
+Use the provided Makefile for step-by-step control:
 
 ```bash
 # 1) Install and build
@@ -267,8 +298,11 @@ Long-term: Cross-chain adapters, DAO governance, advanced composite proofs.
 |---------|--------------|-----|
 | Proof rejected | VK mismatch or malformed inputs | Re-export verification key & confirm circuit version |
 | Deploy fails | Unfunded account | Use testnet friendbot to fund address |
-| Event warnings | Legacy API usage | Upgrade SDK and migrate events later |
+| Event warnings | Legacy API usage | Upgrade SDK and migrate events later (cosmetic warning only) |
 | Revoke fails | Wrong caller address | Ensure owner calls `revoke` with auth |
+| Frontend white screen | Module export error | Check browser console; ensure `@stellar/stellar-sdk` versions match across packages |
+| React Router warning | Future flag not set | Verify `future={{ v7_startTransition: true }}` in RouterProvider |
+| Bot interop warnings | Star exports in contract packages | Non-blocking; can be fixed by using named exports instead |
 
 ## 🔍 Integrity & Verification
 - Maintain a manifest of circuit artifact hashes.

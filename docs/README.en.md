@@ -75,6 +75,40 @@ ZKID Stellar is a privacy‑first identity & compliance platform. Users generate
 - Git
 
 ## Quickstart
+
+### One-Command Startup (Recommended)
+
+Start the entire system (frontend + bot) with a single command:
+
+```bash
+bash scripts/start-all.sh --with-bot --no-test
+```
+
+This script will:
+1. Install all dependencies (monorepo + SDK + frontend + bot)
+2. Build Soroban contracts and SDK
+3. Compile ZK circuits (or skip with `--skip-circuits`)
+4. Start frontend dev server (http://localhost:5173)
+5. Start Eliza bot (http://localhost:3000)
+
+**Available flags:**
+- `--with-bot` — Start Eliza bot alongside frontend
+- `--no-test` — Skip test execution (faster startup)
+- `--skip-circuits` — Don't recompile circuits (use existing artifacts)
+- `--port <n>` — Custom frontend port (default: 5173)
+- `--help` — Show all options
+
+**Stop all services:**
+```bash
+# Use the PIDs shown in terminal output
+kill <FRONTEND_PID> <BOT_PID>
+# Or press Ctrl+C in the terminal running the script
+```
+
+### Manual Startup (Alternative)
+
+Use the Makefile for step-by-step control:
+
 ```bash
 make install
 make build
@@ -83,6 +117,7 @@ make app-dev
 # optional
 npm run eliza:dev
 ```
+
 Open http://localhost:5173 for the dApp, http://localhost:3000 for ElizaOS.
 
 ## Detailed Guides
@@ -158,6 +193,9 @@ COMPLIANCE_ORACLE_ID=CDVZI3V7S3RIV3INQQRAPMR4FKIQJPR7NRJMDWET6LOSGBMFFCLLERVM
 | Invalid proof | VK mismatch | Re-export VK and set in Verifier. |
 | Deploy fails | Unfunded account | Use testnet friendbot. |
 | CLI arg parse | Wrong encoding | Use SDK or base64/xdr helpers. |
+| Frontend white screen | Module export error | Check browser console; ensure matching `@stellar/stellar-sdk` versions |
+| React Router warning | Future flag not set | Verify `future={{ v7_startTransition: true }}` in RouterProvider |
+| Bot interop warnings | Star exports in contract packages | Non-blocking; can fix by using named exports |
 
 ## Security & Privacy
 - No raw PII on chain or servers.  

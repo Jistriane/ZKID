@@ -23,11 +23,26 @@ mkdir -p "$ART_DIR/age_verification"
 mkdir -p "$ART_DIR/country_verification"
 mkdir -p "$ART_DIR/income_threshold"
 
-# Download Powers of Tau if needed
-PTAU_FILE="circuits/powersOfTau28_hez_final_12.ptau"
-if [ ! -f "$PTAU_FILE" ]; then
-    echo "📥 Downloading Powers of Tau (ptau file)..."
-    curl -o "$PTAU_FILE" https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_hez_final_12.ptau
+# Resolve Powers of Tau (ptau) file
+# Preferir arquivo já presente na raiz do repositório, depois em circuits/ e por fim download
+ROOT_PTAU="powersOfTau28_hez_final_12.ptau"
+LOCAL_PTAU="$CIRCUITS_DIR/powersOfTau28_hez_final_12.ptau"
+if [ -f "$ROOT_PTAU" ]; then
+    PTAU_FILE="$ROOT_PTAU"
+elif [ -f "$LOCAL_PTAU" ]; then
+    PTAU_FILE="$LOCAL_PTAU"
+else
+    echo "📥 Baixando Powers of Tau (ptau file)..."
+    mkdir -p "$CIRCUITS_DIR"
+    curl -L -o "$LOCAL_PTAU" https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_hez_final_12.ptau || true
+    PTAU_FILE="$LOCAL_PTAU"
+fi
+
+# Se download inicial falhar (ex.: 243 bytes), tente mirror alternativo
+if [ ! -s "$PTAU_FILE" ] || [ $(stat -c%s "$PTAU_FILE" 2>/dev/null || echo 0) -lt 1024 ]; then
+    echo "⚠️  PTAU em '$PTAU_FILE' parece inválido. Tentando mirror alternativo..."
+    curl -L -o "$LOCAL_PTAU" https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final_12.ptau || true
+    PTAU_FILE="$LOCAL_PTAU"
 fi
 
 # Function to compile a circuit

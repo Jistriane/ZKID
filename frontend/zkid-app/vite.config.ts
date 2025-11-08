@@ -26,7 +26,15 @@ export default defineConfig({
     cors: true,
   },
   optimizeDeps: {
-    exclude: ['@stellar/stellar-sdk'], // Evitar problemas com SDK do Stellar
+    include: [
+      '@stellar/stellar-sdk',
+      '@stellar/stellar-sdk/contract',
+      '@stellar/stellar-sdk/rpc',
+      'buffer'
+    ],
+    // Removido exclude para permitir pré-bundle da versão unificada ^14.3.1 do stellar-sdk
+    // Caso surja conflito futuro, podemos reintroduzir com configuração específica.
+    // exclude: ['@stellar/stellar-sdk'],
   },
   build: {
     chunkSizeWarningLimit: 1200,

@@ -7,7 +7,7 @@ export type VerifyRequest = {
 }
 
 export type IssueRequest = {
-  ownerPasskey: string
+  ownerPublicKey: string // chave pública da conta Stellar que será o owner
   proofHash: string
   ttlSeconds: number
 }
@@ -17,8 +17,11 @@ export async function verifyIdentityProof(cfg: ZkidConfig, req: VerifyRequest): 
   if (!cfg.verifierId) return true // fallback mock
   
   try {
-    const StellarSdk = await import('@stellar/stellar-sdk')
-    const server = new StellarSdk.SorobanRpc.Server(cfg.rpcUrl)
+    const [StellarSdk, rpc] = await Promise.all([
+      import('@stellar/stellar-sdk'),
+      import('@stellar/stellar-sdk/rpc')
+    ])
+    const server = new (rpc as typeof import('@stellar/stellar-sdk/rpc')).Server(cfg.rpcUrl)
     const enc = new TextEncoder()
     
     // Construir chamada ao contrato Verifier.verify_identity_proof
@@ -44,9 +47,9 @@ export async function verifyIdentityProof(cfg: ZkidConfig, req: VerifyRequest): 
       .build()
     
     // Simular transaction para obter resultado sem gastar fees
-    const simulated = await server.simulateTransaction(tx)
-    
-    if (StellarSdk.SorobanRpc.Api.isSimulationSuccess(simulated)) {
+  const simulated = await server.simulateTransaction(tx)
+
+  if ((rpc as typeof import('@stellar/stellar-sdk/rpc')).Api.isSimulationSuccess(simulated)) {
       // Parsear resultado booleano do ScVal retornado
       const resultVal = simulated.result?.retval
       if (resultVal && resultVal.switch().value === StellarSdk.xdr.ScValType.scvBool().value) {
@@ -65,17 +68,19 @@ export async function issueCredential(cfg: ZkidConfig, req: IssueRequest): Promi
   if (!cfg.registryId) return 'mock-credential-id'
   
   try {
-    const StellarSdk = await import('@stellar/stellar-sdk')
-    const server = new StellarSdk.SorobanRpc.Server(cfg.rpcUrl)
+    const [StellarSdk, rpc] = await Promise.all([
+      import('@stellar/stellar-sdk'),
+      import('@stellar/stellar-sdk/rpc')
+    ])
+    const server = new (rpc as typeof import('@stellar/stellar-sdk/rpc')).Server(cfg.rpcUrl)
     
-    // Construir parâmetros ScVal
-    const ownerAddress = new StellarSdk.Address(req.ownerPasskey)
+  // Construir parâmetros ScVal
+  const ownerAddress = new StellarSdk.Address(req.ownerPublicKey)
   const proofHashBytes = StellarSdk.xdr.ScVal.scvBytes(Buffer.from(hexToBytes(req.proofHash)))
     const ttlU32 = StellarSdk.xdr.ScVal.scvU32(req.ttlSeconds)
     
-    // Buscar conta source
-    const sourceKeypair = StellarSdk.Keypair.random() // Em produção: vem do wallet
-    const sourceAccount = await server.getAccount(sourceKeypair.publicKey())
+  // Buscar conta source = própria conta do usuário
+  const sourceAccount = await server.getAccount(req.ownerPublicKey)
     
     // Construir transaction
     const contract = new StellarSdk.Contract(cfg.registryId)
@@ -96,22 +101,34 @@ export async function issueCredential(cfg: ZkidConfig, req: IssueRequest): Promi
     
     // Preparar transaction (obter footprint e auth)
     const prepared = await server.prepareTransaction(tx)
-    
-    // Em produção: obter assinatura do wallet do usuário
-    prepared.sign(sourceKeypair)
+
+    // Assinatura: usar callback opcional configurada (ex: Freighter) ou fallback mock
+    if (cfg.signTransaction) {
+      try {
+        const signedXdr = await cfg.signTransaction(prepared.toXDR(), { networkPassphrase: StellarSdk.Networks.TESTNET })
+        const rebuilt = StellarSdk.TransactionBuilder.fromXDR(signedXdr, StellarSdk.Networks.TESTNET)
+        const sendResponse = await server.sendTransaction(rebuilt)
+        return await finalizeCredentialSend(sendResponse, server, rpc, req.proofHash)
+      } catch (signErr) {
+        console.warn('[soroban] issueCredential sign callback failed, fallback local random key:', signErr)
+      }
+    }
+    // Fallback: NÃO IDEAL - gera chave random e falha em require_auth (útil p/ desenvolvimento)
+    const tempKey = StellarSdk.Keypair.random()
+    prepared.sign(tempKey)
     
     // Submeter transaction
-    const sendResponse = await server.sendTransaction(prepared)
+  const sendResponse = await server.sendTransaction(prepared)
     
-    if (sendResponse.status === 'PENDING') {
+  if (sendResponse.status === 'PENDING') {
       // Poll até transaction ser confirmada
       let getResponse = await server.getTransaction(sendResponse.hash)
-      while (getResponse.status === StellarSdk.SorobanRpc.Api.GetTransactionStatus.NOT_FOUND) {
+      while (getResponse.status === (rpc as typeof import('@stellar/stellar-sdk/rpc')).Api.GetTransactionStatus.NOT_FOUND) {
         await new Promise(resolve => setTimeout(resolve, 1000))
         getResponse = await server.getTransaction(sendResponse.hash)
       }
       
-      if (getResponse.status === StellarSdk.SorobanRpc.Api.GetTransactionStatus.SUCCESS) {
+      if (getResponse.status === (rpc as typeof import('@stellar/stellar-sdk/rpc')).Api.GetTransactionStatus.SUCCESS) {
         // Tentar extrair retorno; caso contrário, usa fallback sintético
         try {
           // retorno não tipado; manter como unknown
@@ -143,13 +160,47 @@ export async function issueCredential(cfg: ZkidConfig, req: IssueRequest): Promi
   }
 }
 
+type TxPollServer = { getTransaction: (hash: string) => Promise<{ status: string; returnValue?: unknown }> };
+type RpcApiModule = { Api: { GetTransactionStatus: { NOT_FOUND: string; SUCCESS: string } } };
+async function finalizeCredentialSend(
+  sendResponse: { status: string; hash: string },
+  server: TxPollServer,
+  rpc: RpcApiModule,
+  proofHash: string
+): Promise<string> {
+  if (sendResponse.status === 'PENDING') {
+    let getResponse = await server.getTransaction(sendResponse.hash)
+    while (getResponse.status === rpc.Api.GetTransactionStatus.NOT_FOUND) {
+      await new Promise(r => setTimeout(r, 1000))
+      getResponse = await server.getTransaction(sendResponse.hash)
+    }
+    if (getResponse.status === rpc.Api.GetTransactionStatus.SUCCESS) {
+      try {
+        const resultVal: unknown = getResponse.returnValue
+        const StellarSdkMod = await import('@stellar/stellar-sdk')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const StellarSdk: any = (StellarSdkMod as any).default ?? StellarSdkMod
+        const scValToNative: ((v: unknown) => unknown) | undefined = StellarSdk.scValToNative
+        const native = scValToNative ? scValToNative(resultVal) : undefined
+        if (typeof native === 'string') return native
+      } catch (extractErr) {
+        console.debug('[soroban] finalizeCredentialSend return extraction error:', extractErr)
+      }
+    }
+  }
+  return `cred_${proofHash.slice(0,12)}`
+}
+
 export type ExplanationRecord = { hashHex: string; uri?: string }
 
 export async function setComplianceExplanation(cfg: ZkidConfig, params: { admin: string; proofHashHex: string; explanationHashHex: string; uri?: string }): Promise<boolean> {
   if (!cfg.complianceId) return true
   try {
-    const StellarSdk = await import('@stellar/stellar-sdk')
-    const server = new StellarSdk.SorobanRpc.Server(cfg.rpcUrl)
+    const [StellarSdk, rpc] = await Promise.all([
+      import('@stellar/stellar-sdk'),
+      import('@stellar/stellar-sdk/rpc')
+    ])
+    const server = new (rpc as typeof import('@stellar/stellar-sdk/rpc')).Server(cfg.rpcUrl)
     const contract = new StellarSdk.Contract(cfg.complianceId)
 
     const owner = new StellarSdk.Address(params.admin)
@@ -178,8 +229,11 @@ export async function setComplianceExplanation(cfg: ZkidConfig, params: { admin:
 export async function getComplianceExplanation(cfg: ZkidConfig, proofHashHex: string): Promise<ExplanationRecord | null> {
   if (!cfg.complianceId) return null
   try {
-    const StellarSdk = await import('@stellar/stellar-sdk')
-    const server = new StellarSdk.SorobanRpc.Server(cfg.rpcUrl)
+    const [StellarSdk, rpc] = await Promise.all([
+      import('@stellar/stellar-sdk'),
+      import('@stellar/stellar-sdk/rpc')
+    ])
+    const server = new (rpc as typeof import('@stellar/stellar-sdk/rpc')).Server(cfg.rpcUrl)
     const contract = new StellarSdk.Contract(cfg.complianceId)
 
     const kp = StellarSdk.Keypair.random()
@@ -190,10 +244,11 @@ export async function getComplianceExplanation(cfg: ZkidConfig, proofHashHex: st
       .setTimeout(180)
       .build()
     const sim = await server.simulateTransaction(tx)
-    const isSimSuccess: ((s: unknown) => boolean) | undefined =
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (StellarSdk as any).SorobanRpc?.Api?.isSimulationSuccess
-    if (isSimSuccess && isSimSuccess(sim)) {
+  // Checagem de sucesso da simulação (tipos v14)
+  const rpcApi = (rpc as typeof import('@stellar/stellar-sdk/rpc')).Api
+  const isSimSuccess = rpcApi?.isSimulationSuccess
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (isSimSuccess && isSimSuccess(sim as any)) {
       const v: unknown = (sim as { result?: { retval?: unknown } }).result?.retval
       if (!v) return null
       const scValToNative: ((val: unknown) => unknown) | undefined =

@@ -6,7 +6,7 @@ import { useWallet } from '../context/WalletContext'
 
 export function IncomeProofPage() {
   const navigate = useNavigate()
-  const { isConnected, network, setNetwork } = useWallet()
+  const { isConnected, network, setNetwork, publicKey } = useWallet()
   const [income, setIncome] = useState('')
   const [minIncome, setMinIncome] = useState('3000')
   const [currency, setCurrency] = useState('BRL')
@@ -50,15 +50,17 @@ export function IncomeProofPage() {
       const result = await verifyAndIssue({
         proof: proof.proof,
         publicSignals: proof.publicSignals,
-        userPasskey: passkey
+        userPasskey: passkey,
+        userPublicKey: publicKey as string
       })
 
       setCredentialId(result.id)
       setStatus('✅ Credential issued successfully!')
       
       setTimeout(() => navigate('/dashboard'), 2000)
-    } catch (e: any) {
-      setError(e?.message || String(e))
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setError(msg)
       setStatus('')
     } finally {
       setLoading(false)

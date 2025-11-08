@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { setConfig } from 'zkid-sdk'
 import { WalletProvider } from './context/WalletContext'
 import { Layout } from './components/Layout'
@@ -27,29 +27,43 @@ export function App() {
     
   // SDK expects 'testnet' | 'public'
   const sdkNetwork = internalNetwork === 'mainnet' ? 'public' : internalNetwork
-  setConfig({ network: sdkNetwork, rpcUrl, verifierId, registryId, complianceId })
+    // Callback opcional de assinatura (Freighter)
+    const signTransaction = async (xdr: string, opts: { networkPassphrase: string }) => {
+      try {
+        if (typeof window !== 'undefined' && window.freighter?.signTransaction) {
+          const networkLabel = sdkNetwork === 'public' ? 'PUBLIC' : 'TESTNET'
+          return await window.freighter.signTransaction(xdr, { network: networkLabel, networkPassphrase: opts.networkPassphrase })
+        }
+      } catch (err) {
+        console.warn('[App] signTransaction callback falhou, retornando XDR original', err)
+      }
+      return xdr // fallback sem assinatura (irá falhar em require_auth, mas útil p/ desenvolvimento)
+    }
+    setConfig({ network: sdkNetwork, rpcUrl, verifierId, registryId, complianceId, signTransaction })
   }, [])
+
+  const router = createBrowserRouter([
+    {
+      path: '/',
+      element: <Layout />,
+      children: [
+        { index: true, element: <HomePage /> },
+        { path: 'dashboard', element: <DashboardPage /> },
+        { path: 'proofs', element: <ProofsPage /> },
+        { path: 'proofs/age', element: <AgeProofPage /> },
+        { path: 'proofs/country', element: <CountryProofPage /> },
+        { path: 'proofs/income', element: <IncomeProofPage /> },
+        { path: 'latam', element: <LatamPage /> },
+        { path: 'compliance', element: <CompliancePage /> },
+        { path: 'settings', element: <SettingsPage /> },
+        { path: 'eliza-demo', element: <ElizaDemoPage /> },
+      ],
+    },
+  ])
 
   return (
     <WalletProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<HomePage />} />
-            <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="proofs" element={<ProofsPage />} />
-            <Route path="proofs/age" element={<AgeProofPage />} />
-            <Route path="proofs/country" element={<CountryProofPage />} />
-            <Route path="proofs/income" element={<IncomeProofPage />} />
-            <Route path="latam" element={<LatamPage />} />
-            <Route path="compliance" element={<CompliancePage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="eliza-demo" element={<ElizaDemoPage />} />
-            {/** diagnostic page removed */}
-            {/* Debug page removed */}
-          </Route>
-        </Routes>
-      </BrowserRouter>
+      <RouterProvider router={router} />
     </WalletProvider>
   )
 }
