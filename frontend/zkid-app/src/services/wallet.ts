@@ -21,8 +21,9 @@ interface StellarSDK { Networks: StellarNetworks; Keypair: StellarKeypairCtor; T
 
 async function getSDK(): Promise<StellarSDK> {
   const mod: unknown = await import('@stellar/stellar-sdk')
-  const anyMod = (mod as any).default ?? (mod as any)
-  return anyMod as StellarSDK
+  const defaultExport = (mod as { default?: unknown }).default
+  const resolved: unknown = defaultExport ?? mod
+  return resolved as StellarSDK
 }
 
 // Integration with Stellar Wallet SDK (WalletConnect, Freighter, etc.)
@@ -80,6 +81,25 @@ export async function connectWallet(): Promise<WalletConnection> {
       tx.sign(keypair)
       return tx.toXDR()
     }
+  }
+}
+
+// Helper para obter função de assinatura do wallet atual
+export async function getWalletSigner(): Promise<(xdr: string) => Promise<string>> {
+  const w = typeof window !== 'undefined' ? (window as unknown as { freighter?: Freighter }) : {}
+  if (w.freighter?.signTransaction) {
+    const SDK = await getSDK()
+    return async (xdr: string) => w.freighter!.signTransaction(xdr, { network: 'TESTNET', networkPassphrase: SDK.Networks.TESTNET })
+  }
+  // Fallback: usar passkey local
+  return async (txXdr: string) => {
+    const secret = localStorage.getItem('stellar-passkey-secret')
+    if (!secret) throw new Error('Passkey not found')
+    const SDK = await getSDK()
+    const keypair = SDK.Keypair.fromSecret(secret)
+    const tx = SDK.TransactionBuilder.fromXDR(txXdr, SDK.Networks.TESTNET)
+    tx.sign(keypair)
+    return tx.toXDR()
   }
 }
 

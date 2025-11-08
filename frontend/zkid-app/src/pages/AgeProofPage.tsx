@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { generateProof, hashProof } from 'zkid-sdk'
 import { issueCredentialService, verifyIdentityProofService } from '../services/contracts'
+import { getWalletSigner } from '../services/wallet'
 import { Card, CardContent } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { useWallet } from '../context/WalletContext'
@@ -50,12 +51,13 @@ export function AgeProofPage() {
 
       setStatus('Issuing credential on-chain...')
       const proofHashHex = hashProof(proofArtifacts)
+      const walletSign = await getWalletSigner()
       const signedId = await issueCredentialService(
         network,
         publicKey!,
         proofHashHex,
         60 * 60 * 24 * 365,
-        async (xdr: string) => xdr // TODO: integrar assinatura real via wallet
+        walletSign
       )
 
       setCredentialId(signedId)
