@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { generateProof, verifyAndIssue } from 'zkid-sdk'
-import { ensurePasskey } from '../services/passkeys'
+import { generateProof, hashProof } from 'zkid-sdk'
+import { issueCredentialService, verifyIdentityProofService } from '../services/contracts'
 import { Card, CardContent } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { useWallet } from '../context/WalletContext'
 
 export function AgeProofPage() {
   const navigate = useNavigate()
-  const { isConnected, network, setNetwork } = useWallet()
+  const { isConnected, network, setNetwork, publicKey } = useWallet()
   const [birthdate, setBirthdate] = useState('')
   const [minAge, setMinAge] = useState('18')
   const [loading, setLoading] = useState(false)
@@ -39,23 +39,26 @@ export function AgeProofPage() {
       setStatus('Generating ZK proof...')
       
       const currentDate = new Date().toISOString().slice(0, 10)
-      const proof = await generateProof({
+      const proofArtifacts = await generateProof({
         circuit: 'age_verification',
         privateInputs: { birthdate },
         publicInputs: { minAge: Number(minAge), currentDate }
       })
+      setStatus('Simulating verification...')
+      const ok = await verifyIdentityProofService(network, proofArtifacts.proof, proofArtifacts.publicSignals)
+      if (!ok) throw new Error('Proof inválida no contrato Verifier')
 
-      setStatus('Verifying proof on-chain...')
-      const passkey = await ensurePasskey()
-      
-      setStatus('Issuing credential...')
-      const result = await verifyAndIssue({
-        proof: proof.proof,
-        publicSignals: proof.publicSignals,
-        userPasskey: passkey
-      })
+      setStatus('Issuing credential on-chain...')
+      const proofHashHex = hashProof(proofArtifacts)
+      const signedId = await issueCredentialService(
+        network,
+        publicKey!,
+        proofHashHex,
+        60 * 60 * 24 * 365,
+        async (xdr: string) => xdr // TODO: integrar assinatura real via wallet
+      )
 
-      setCredentialId(result.id)
+      setCredentialId(signedId)
       setStatus('✅ Credential issued successfully!')
       
       setTimeout(() => navigate('/dashboard'), 2000)
