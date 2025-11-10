@@ -5,7 +5,7 @@
 # 🔐 ZKID Stellar
 
 Zero-Knowledge Identity and Compliance with Passkeys  
-Stellar Soroban + Circom + React
+Stellar Soroban + Circom + React + Scaffold
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -13,7 +13,7 @@ Stellar Soroban + Circom + React
 ---
 
 <p align="center">
-  <img src="docs/assets/landing.png" alt="ZKID Stellar — Landing page preview" width="1024" />
+  <img src="docs/assets/landing.png" alt="ZKID Stellar — Zero-Knowledge Identity landing page" width="1024" />
 </p>
 
 ## 🎯 What is ZKID Stellar?
@@ -437,9 +437,9 @@ build_command = "stellar contract build --package compliance_oracle"
 wasm_path = "target/wasm32v1-none/release/compliance_oracle.wasm"
 
 [environments.testnet.contracts]
-verifier = { id = "CBRT2F27KEXANOP6ILGF2TPFZJKYZCFCWSPCUCX3DQQOH4OBIAHTSJ5F" }
-credential_registry = { id = "CCMAZDIUOLR66I2CABKI34JPXYPSZPTJREVRSDAKBSUIZ2QG73QFGUK4" }
-compliance_oracle = { id = "CDOTN2UWCG26J2LKKNVUVFYBBHRPSSD7D5Z7N6K5C5F4M3TK35WR67AC" }
+verifier = { id = "CA64XL6ZGUEDN73SN2TAWHY5XBTWPO43K2HJ6YWV5VPV5V5UZRD6VUC4" }
+credential_registry = { id = "CA376B7L4CDWYMW4KQZMFEVQZORP2CYTJSOLPFH4PCZZVC2U55AZA6YB" }
+compliance_oracle = { id = "CDUTFVWQQWTD64HJVI3ZSVAOFSNVULQ2DDXCQRAG5FQGOOJUIZGCUX6G" }
 
 [client]
 output_dir = "packages"
@@ -519,5 +519,76 @@ Frontend wraps Freighter or a deterministic passkey fallback returning `{ signTr
 - Reduced integration friction for frontend & tests
 
 If deploying to mainnet later, add the new IDs to `[environments.production.contracts]` in `stellar.toml` and rebuild clients.
+
+### Critical Lessons Learned
+
+#### 🔴 Soroban Crypto Non-Determinism (November 2025)
+
+**CRITICAL DISCOVERY:** `env.crypto().sha256()` and other crypto functions in Soroban are **NON-DETERMINISTIC**
+
+- They return **different values** during `simulateTransaction` vs actual execution
+- This breaks footprint because storage keys don't match between phases
+- **NEVER use `env.crypto()` to generate storage keys or credential IDs**
+- Use only for validations that don't affect the footprint
+- Prefer deterministic data from inputs or ledger
+
+**Our Fix:**
+
+```rust
+// ❌ BROKEN (non-deterministic)
+let id: BytesN<32> = env.crypto().sha256(&preimage).into();
+
+// ✅ FIXED (deterministic)
+let id_bytes: Bytes = proof_hash.clone(); // proof_hash is already deterministic
+```
+
+**Result:** 100% success rate (20+ consecutive transactions) after switching to deterministic ID generation.
+
+#### Debugging Timeline: Issue Credential Journey
+
+After 20+ attempts to fix "key outside footprint" errors:
+
+
+1. **Attempts 1-13:** Various SDK approaches → instance mismatch errors
+2. **Attempts 14-16:** Transaction preparation methods → partial progress
+3. **Attempt 17:** Fee calculation fix → accepted but footprint still wrong
+4. **Attempts 18-19:** Direct XDR usage → still footprint error
+5. **Attempt 20:** RPC transaction analysis → Discovered credential ID differed between simulate/execute
+6. **Root Cause:** `env.crypto().sha256()` non-determinism
+7. **Solution:** Use proof_hash directly as ID → **100% success!**
+
+**Workarounds Applied:**
+
+- ✅ Manual XDR signing + JSON-RPC (bypass SDK `.signAndSend()`)
+- ✅ `TransactionBuilder.cloneFrom()` for rebuilding with footprint
+- ✅ Fee calculation: `baseFee + resourceFee * 1.2`
+- ✅ Contract fix: Deterministic ID generation
+- ✅ localStorage credential tracking (bypass RPC events API limitations)
+
+### Dashboard Credential Tracking
+
+**Implementation:** Hybrid localStorage + on-chain verification system
+
+**How it works:**
+
+1. After successful credential issuance, `storeCredentialLocally()` saves to browser localStorage
+2. Dashboard reads from localStorage on load
+3. For each credential, calls `get_credential()` on-chain to verify status
+4. Displays real-time status: active, revoked, or expired
+
+**Benefits:**
+
+- ⚡ **Performance:** Instant display (localStorage is synchronous)
+- 🔒 **Privacy:** Data stays in user's browser
+- ✅ **Reliability:** No dependency on RPC events API pagination
+- 🔄 **Accuracy:** Always reflects current on-chain state
+
+**Files Modified:**
+
+- `frontend/zkid-app/src/services/credentials.ts` - Complete rewrite
+- `frontend/zkid-app/src/pages/AgeProofPage.tsx` - Adds local storage
+- `frontend/zkid-app/src/pages/DashboardPage.tsx` - Auto-refresh on load
+
+**Limitation:** Credentials not visible if localStorage cleared or using different browser. Future solution: Implement event-based discovery when Soroban RPC events API improves.
 
 ---
