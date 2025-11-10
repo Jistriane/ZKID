@@ -1,8 +1,17 @@
 # ZKID Stellar Architecture
 
+**Last Updated:** November 10, 2025  
+**Version:** 1.0.0  
+**Deployment:** Testnet (Production Ready)
+
 ## 1. High-Level Overview
 
 ZKID Stellar is a privacy-preserving identity & compliance platform on Stellar Soroban. Users prove attributes (e.g., age ≥ threshold) via zero-knowledge proofs (Groth16) generated locally, then optionally mint revocable, expirable soulbound credentials. A compliance oracle tracks sanctions and attaches explainable metadata. An AI assistant (ElizaOS) provides human-friendly explanations entirely locally.
+
+**Production Deployment:**
+- **Frontend:** https://zkid-stellar.vercel.app (Vercel)
+- **Network:** Stellar Testnet
+- **Contracts:** 3 deployed and verified (Verifier, Registry, Oracle)
 
 ## 2. Core Components
 
@@ -48,6 +57,11 @@ ZKID Stellar is a privacy-preserving identity & compliance platform on Stellar S
 | Credential Registry | `cred:<id>`                                           | Struct { owner, issued_at, expires_at, revoked, proof_hash }. |
 | Compliance Oracle   | Admin (instance), `sanction:<hash>`, `explain:<hash>` | Booleans + explanation tuple { explanation_hash, uri? }.      |
 
+**Current Deployed Contracts (Testnet):**
+- Verifier: `CBRT2F27KEXANOP6ILGF2TPFZJKYZCFCWSPCUCX3DQQOH4OBIAHTSJ5F`
+- Credential Registry: `CCMAZDIUOLR66I2CABKI34JPXYPSZPTJREVRSDAKBSUIZ2QG73QFGUK4`
+- Compliance Oracle: `CDOTN2UWCG26J2LKKNVUVFYBBHRPSSD7D5Z7N6K5C5F4M3TK35WR67AC`
+
 ## 6. Zero-Knowledge Pipeline
 
 1. Circuit design (constraint logic).
@@ -69,6 +83,12 @@ ZKID Stellar is a privacy-preserving identity & compliance platform on Stellar S
 | Expire   | Time-based check (expires_at < now) returns false validity.   |
 | Audit    | Events emit (issue, revoke) for external indexing.            |
 
+**Storage Strategy (Nov 2025 Update):**
+- **On-chain:** Credential metadata (ID, owner, dates, revocation status)
+- **Local (Browser):** Full credential details via localStorage for instant display
+- **Hybrid Verification:** Dashboard reads localStorage + validates on-chain status
+- **Benefits:** Instant UX + guaranteed on-chain truth + privacy preservation
+
 ## 8. Compliance & Explanation Flow
 
 1. Admin flags a hash as sanctioned (set_sanction_status).
@@ -83,7 +103,12 @@ Each contract defines a `#[contracterror]` enum. All mutating & query functions 
 
 ## 10. Events
 
-Currently using legacy tuple-based `env.events().publish((symbol_short!("evt"), topic), data)` due to SDK version limitations. Migration path: upgrade Soroban SDK → adopt `#[contractevent]` for typed events.
+✅ **UPDATED (Nov 2025):** All contracts now use modern `#[contractevent]` macro for typed events. Migration completed successfully.
+
+Events emitted:
+- **Verifier:** `ProofVerified(address, proof_hash, result)`
+- **Registry:** `CredentialIssued(owner, credential_id)`, `CredentialRevoked(owner, credential_id)`
+- **Oracle:** `SanctionStatusChanged(hash, status)`, `ExplanationSet(hash)`
 
 ## 11. Performance Considerations
 
@@ -113,12 +138,21 @@ Currently using legacy tuple-based `env.events().publish((symbol_short!("evt"), 
 | Frontend supply-chain attack       | Recommend checksum verification + offline bundle distribution.            |
 | Proof replay in different context  | Public inputs hashed; context binding recommended (add domain separator). |
 
-## 14. Future Architecture Evolutions
+## 14. Architecture Evolutions & Recent Updates
 
-- Event system migration.
-- Cross-chain credential synchronization (bridge contract + Merkle root anchoring).
-- Decentralized setup (multi-party ceremony artifacts registry).
-- Privacy-preserving selective revocation proofs.
+**Completed (Nov 2025):**
+- ✅ Event system migration to `#[contractevent]`
+- ✅ Deterministic credential ID generation (uses `proof_hash` directly)
+- ✅ localStorage-based credential tracking with on-chain verification
+- ✅ Wallet address binding in all circuits (`addrHash` public input)
+- ✅ Production deployment on Vercel (https://zkid-stellar.vercel.app)
+- ✅ Zero compilation warnings across all contracts
+
+**Planned:**
+- Cross-chain credential synchronization (bridge contract + Merkle root anchoring)
+- Decentralized setup (multi-party ceremony artifacts registry)
+- Privacy-preserving selective revocation proofs
+- Mainnet deployment with governance migration
 
 ## 15. Diagram (Textual)
 
@@ -134,13 +168,75 @@ Currently using legacy tuple-based `env.events().publish((symbol_short!("evt"), 
   |--(explanation ask)-> [Local AI Assistant]
 ```
 
-## 16. Glossary
+## 16. Critical Lessons Learned (Nov 2025)
 
-- Commitment: Hash of public inputs used in proof context.
-- Soulbound: Non-transferable asset tied to an address.
-- Revocation: Setting a credential to invalid state regardless of expiry.
-- Explanation Hash: Hash of off-chain compliance narrative or legal document.
+### 🔴 Soroban Crypto Non-Determinism
+
+**Discovery:** `env.crypto().sha256()` returns **different values** during simulation vs execution.
+
+**Impact:** Storage keys mismatch between phases → footprint errors → transaction failures.
+
+**Solution:** 
+```rust
+// ❌ BROKEN (non-deterministic)
+let id: BytesN<32> = env.crypto().sha256(&preimage).into();
+
+// ✅ FIXED (deterministic)
+let id_bytes: Bytes = proof_hash.clone(); // Use deterministic input data
+```
+
+**Rule:** Never use `env.crypto()` for generating storage keys or IDs. Use only for validation logic that doesn't affect footprint.
+
+### Dashboard Credential Tracking
+
+**Challenge:** Soroban RPC events API has pagination/reliability limitations.
+
+**Solution:** Hybrid localStorage + on-chain verification system.
+
+**Implementation:**
+1. Store credentials locally after issuance (`storeCredentialLocally()`)
+2. Dashboard reads from localStorage on load
+3. Verify status on-chain via `get_credential()` contract call
+4. Display real-time status: active, revoked, or expired
+
+**Benefits:**
+- ⚡ Instant display (synchronous localStorage)
+- 🔒 Privacy (data stays in browser)
+- ✅ Reliability (no RPC API dependency)
+- 🔄 Accuracy (always reflects on-chain truth)
+
+## 17. Glossary
+
+- **Commitment:** Hash of public inputs used in proof context.
+- **Soulbound:** Non-transferable asset tied to an address.
+- **Revocation:** Setting a credential to invalid state regardless of expiry.
+- **Explanation Hash:** Hash of off-chain compliance narrative or legal document.
+- **Deterministic ID:** Credential ID derived from proof_hash (not env.crypto())
+- **Hybrid Storage:** Combined localStorage (UX) + on-chain (truth) approach
+
+## 18. Production Deployment Details
+
+**Infrastructure:**
+- **Frontend Hosting:** Vercel (https://zkid-stellar.vercel.app)
+- **Smart Contracts:** Stellar Soroban Testnet
+- **Build System:** Monorepo with npm workspaces
+- **CI/CD:** GitHub → Vercel auto-deploy on main branch
+
+**Security Headers (Production):**
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `X-XSS-Protection: 1; mode=block`
+
+**Environment Variables:**
+```bash
+VITE_STELLAR_NETWORK=testnet
+VITE_HORIZON_URL=https://horizon-testnet.stellar.org
+VITE_RPC_URL=https://soroban-testnet.stellar.org
+VITE_VERIFIER_CONTRACT_ID=CBRT2F...
+VITE_CREDENTIAL_REGISTRY_CONTRACT_ID=CCMAZD...
+VITE_COMPLIANCE_ORACLE_CONTRACT_ID=CDOTN2...
+```
 
 ---
 
-This document provides architectural grounding. Request more depth (e.g., sequence diagrams) if needed.
+This document provides architectural grounding with production deployment details. For deployment guide, see `VERCEL_DEPLOYMENT.md`.
