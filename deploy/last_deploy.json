@@ -2,25 +2,25 @@
   "network": "testnet",
   "rpcUrl": "https://soroban-testnet.stellar.org",
   "networkPassphrase": "Test SDF Network ; September 2015",
-  "deployerPublicKey": "GCKZ35K7GMUJBFKBOS2YM7FUHATM5FHHFGH7AVNGC5TXLFGV265G33QX",
+  "deployerPublicKey": "GA3SMP7WZIP7G3RGLAXETC3GKK7LTKV7COLMQBOKGN7G5JQQ25GEEBYS",
   "contracts": {
     "verifier": {
-      "id": "CBMUOMXPCWVYYA75GR6AIJTMUR3W6VOBUQCXJ5GDPRURKDETODUKJWSC",
+      "id": "CBRT2F27KEXANOP6ILGF2TPFZJKYZCFCWSPCUCX3DQQOH4OBIAHTSJ5F",
       "wasm": "target/wasm32v1-none/release/verifier.wasm"
     },
     "credential_registry": {
-      "id": "CB4F5NMRYZ5GYTRPUOYDIU27J23NDNQCAWXZMAOWQ75OWQM7KOMAV7J5",
+      "id": "CCMAZDIUOLR66I2CABKI34JPXYPSZPTJREVRSDAKBSUIZ2QG73QFGUK4",
       "wasm": "target/wasm32v1-none/release/credential_registry.wasm"
     },
     "compliance_oracle": {
-      "id": "CDVZI3V7S3RIV3INQQRAPMR4FKIQJPR7NRJMDWET6LOSGBMFFCLLERVM",
+      "id": "CDOTN2UWCG26J2LKKNVUVFYBBHRPSSD7D5Z7N6K5C5F4M3TK35WR67AC",
       "wasm": "target/wasm32v1-none/release/compliance_oracle.wasm",
       "init": {
-        "admin": "GCKZ35K7GMUJBFKBOS2YM7FUHATM5FHHFGH7AVNGC5TXLFGV265G33QX",
-        "tx": "63ac86534d426e3bac350b9f412e35b7f39e390553dad216c8e11b2031a2242c"
+        "admin": "GA3SMP7WZIP7G3RGLAXETC3GKK7LTKV7COLMQBOKGN7G5JQQ25GEEBYS",
+        "tx": "b633e4ddf162b81d36635dbbd8b5b389d08c245a937e0d22951aecce2a5e50b8"
       }
     }
   },
   "explorer": "https://stellar.expert/explorer/testnet",
-  "timestamp": "${DATE}"
+  "timestamp": "2025-11-10T00:09:11Z"
 }

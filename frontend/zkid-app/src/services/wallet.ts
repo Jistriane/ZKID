@@ -28,98 +28,64 @@ async function getSDK(): Promise<StellarSDK> {
 
 // Integration with Stellar Wallet SDK (WalletConnect, Freighter, etc.)
 export async function connectWallet(): Promise<WalletConnection> {
-  // Check if Freighter extension is installed
+  // Exige extensão de carteira: remover totalmente fallback de passkey.
   const w = typeof window !== 'undefined' ? (window as unknown as { freighter?: Freighter }) : { }
-  if (w.freighter) {
-    try {
-      const freighter = w.freighter as Freighter
-      const pubKey = await freighter.getPublicKey()
-      
-      return {
-        publicKey: pubKey,
-        signTransaction: async (txXdr: string) => {
-          const SDK = await getSDK()
-          const signedXdr = await freighter.signTransaction(txXdr, {
-            network: 'TESTNET',
-            networkPassphrase: SDK.Networks.TESTNET
-          })
-          return signedXdr
-        }
-      }
-    } catch (e) {
-      console.warn('[wallet] Freighter connection failed:', e)
-    }
+  if (!w.freighter) {
+    throw new Error('Freighter wallet não detectada. Instale a extensão para continuar.')
   }
-  
-  // Fallback: use locally stored Passkey (development)
-  let pubKey: string | null = localStorage.getItem('stellar-passkey-pubkey')
-  
-  if (!pubKey) {
-    // Create new passkey (production: use WebAuthn)
-    const SDK = await getSDK()
-    const keypair = SDK.Keypair.random()
-    const newPubKey = keypair.publicKey()
-    pubKey = newPubKey
-    localStorage.setItem('stellar-passkey-pubkey', newPubKey)
-    // Note: secret stays in browser (simulating TEE/Secure Enclave)
-    localStorage.setItem('stellar-passkey-secret', keypair.secret())
-  }
-  
-  // Ensure pubKey is not null
-  const finalPubKey: string = pubKey ?? (await getSDK()).Keypair.random().publicKey()
-  
+  const freighter = w.freighter as Freighter
+  const pubKey = await freighter.getPublicKey()
   return {
-    publicKey: finalPubKey,
+    publicKey: pubKey,
     signTransaction: async (txXdr: string) => {
-      // Passkey simulation: use stored secret
-      const secret = localStorage.getItem('stellar-passkey-secret')
-      if (!secret) throw new Error('Passkey not found')
-      
       const SDK = await getSDK()
-      const keypair = SDK.Keypair.fromSecret(secret)
-      const tx = SDK.TransactionBuilder.fromXDR(txXdr, SDK.Networks.TESTNET)
-      tx.sign(keypair)
-      return tx.toXDR()
+      return freighter.signTransaction(txXdr, { network: 'TESTNET', networkPassphrase: SDK.Networks.TESTNET })
     }
   }
 }
 
 // Helper para obter função de assinatura do wallet atual
 export async function getWalletSigner(): Promise<(xdr: string) => Promise<string>> {
+  // 1) Tente usar a API oficial do Freighter (recomendada)
+  try {
+    // import dinâmico evita pesar o bundle inicial
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const freighter: any = await import('@stellar/freighter-api')
+    if (freighter && typeof freighter.signTransaction === 'function') {
+      const SDK = await getSDK()
+      // Detecta rede persistida pelo app (WalletContext grava em localStorage)
+      const stored = (typeof window !== 'undefined') ? window.localStorage.getItem('stellar-wallet-network') : null
+      const useTestnet = !stored || stored.toLowerCase() === 'testnet'
+      const networkPassphrase = useTestnet ? SDK.Networks.TESTNET : 'Public Global Stellar Network ; September 2015'
+      return async (xdr: string) => freighter.signTransaction(xdr, { network: useTestnet ? 'TESTNET' : 'PUBLIC', networkPassphrase })
+    }
+  } catch (_) {
+    // segue para fallback
+  }
+
+  // 2) Fallback para window.freighter (modo legado)
   const w = typeof window !== 'undefined' ? (window as unknown as { freighter?: Freighter }) : {}
   if (w.freighter?.signTransaction) {
     const SDK = await getSDK()
     return async (xdr: string) => w.freighter!.signTransaction(xdr, { network: 'TESTNET', networkPassphrase: SDK.Networks.TESTNET })
   }
-  // Fallback: usar passkey local
-  return async (txXdr: string) => {
-    const secret = localStorage.getItem('stellar-passkey-secret')
-    if (!secret) throw new Error('Passkey not found')
-    const SDK = await getSDK()
-    const keypair = SDK.Keypair.fromSecret(secret)
-    const tx = SDK.TransactionBuilder.fromXDR(txXdr, SDK.Networks.TESTNET)
-    tx.sign(keypair)
-    return tx.toXDR()
-  }
+  throw new Error('Nenhuma carteira conectada. Conecte via Freighter e tente novamente.')
 }
 
-export async function disconnectWallet(): Promise<void> {
-  // Clear local dev-only passkey data
-  localStorage.removeItem('stellar-passkey-pubkey')
-  localStorage.removeItem('stellar-passkey-secret')
-}
+export async function disconnectWallet(): Promise<void> { /* Sem estado secreto para limpar agora */ }
 
 // Check if a wallet is connected
 export function isWalletConnected(): boolean {
   const w = typeof window !== 'undefined' ? (window as unknown as { freighter?: Freighter }) : { }
-  if (w.freighter) {
-    return true
-  }
-  return !!localStorage.getItem('stellar-passkey-pubkey')
+  // Considera tanto a injeção do objeto quanto uma sessão gravada pelo WalletContext
+  const hasWindowAPI = !!w.freighter
+  const hasSession = (typeof window !== 'undefined') && !!window.localStorage.getItem('stellar-wallet-publickey')
+  return hasWindowAPI || hasSession
 }
 
 // Get connected wallet publicKey (dev-only fallback)
 export function getConnectedPublicKey(): string | null {
-  return localStorage.getItem('stellar-passkey-pubkey')
+  // Freighter expõe método getPublicKey via window somente com chamada; aqui retornamos null e exigimos chamada explícita.
+  return null
 }
 

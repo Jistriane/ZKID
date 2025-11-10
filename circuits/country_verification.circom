@@ -10,6 +10,7 @@ template CountryVerification() {
     // Entradas
     signal input countryCode; // privado (e.g., 76 = BR ISO numeric)
     signal input targetCode;  // público (país alvo)
+    signal input addrHash;    // público: hash da carteira para bind
     
     // Saída
     signal output is_target;  // 1 se o país corresponde
@@ -19,7 +20,8 @@ template CountryVerification() {
     eq.in[0] <== countryCode;
     eq.in[1] <== targetCode;
     
+    // addrHash é apenas incorporado como public input
     is_target <== eq.out;
 }
 
-component main {public [targetCode]} = CountryVerification();
+component main {public [targetCode, addrHash]} = CountryVerification();

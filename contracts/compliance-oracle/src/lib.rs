@@ -1,5 +1,23 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, contracterror, symbol_short, Address, Bytes, Env, Symbol};
+use soroban_sdk::{contract, contractimpl, contracttype, contracterror, contractevent, symbol_short, Address, Bytes, Env, Symbol};
+
+// Eventos do contrato
+#[contractevent]
+pub struct AdminInitialized {
+    pub admin: Address,
+}
+
+#[contractevent]
+pub struct SanctionStatusSet {
+    pub proof_hash: Bytes,
+    pub is_sanctioned: bool,
+}
+
+#[contractevent]
+pub struct ExplanationSet {
+    pub proof_hash: Bytes,
+    pub explanation_hash: Bytes,
+}
 
 // Erros do contrato
 #[contracterror]
@@ -32,10 +50,9 @@ impl ComplianceOracle {
         }
         
         env.storage().instance().set(&symbol_short!("admin"), &admin);
-        env.events().publish(
-            (symbol_short!("admininit"),),
-            admin.clone()
-        );
+        AdminInitialized {
+            admin: admin.clone(),
+        }.publish(&env);
         
         Ok(())
     }
@@ -72,10 +89,10 @@ impl ComplianceOracle {
         let key = Self::sanction_key(&env, &proof_hash);
         env.storage().persistent().set(&key, &is_sanctioned);
         
-        env.events().publish(
-            (symbol_short!("san_set"), proof_hash.clone()),
-            is_sanctioned
-        );
+        SanctionStatusSet {
+            proof_hash: proof_hash.clone(),
+            is_sanctioned,
+        }.publish(&env);
         
         Ok(())
     }
@@ -106,10 +123,10 @@ impl ComplianceOracle {
         };
         env.storage().persistent().set(&key, &exp);
         
-        env.events().publish(
-            (symbol_short!("exp_set"), proof_hash.clone()),
-            explanation_hash.clone()
-        );
+        ExplanationSet {
+            proof_hash: proof_hash.clone(),
+            explanation_hash: explanation_hash.clone(),
+        }.publish(&env);
         
         Ok(())
     }

@@ -1,0 +1,171 @@
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.title {
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  color: #666;
+  margin-bottom: 2rem;
+}
+
+.warningBox {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 2rem;
+  margin-bottom: 1rem;
+}
+
+.warningTitle {
+  margin-bottom: 0.5rem;
+  color: #fbbf24;
+}
+
+.connectButton {
+  width: 100%;
+  padding: 1rem;
+  background: #6d6cff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.formContainer {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 2rem;
+  margin-bottom: 1rem;
+}
+
+.formGroup {
+  margin-bottom: 1.5rem;
+}
+
+.label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.inputGroup {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.3);
+  color: #e2e8f0;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.select {
+  padding: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.3);
+  color: #e2e8f0;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.hint {
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
+.submitButton {
+  width: 100%;
+  padding: 1rem;
+  background: #6d6cff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.submitButton:disabled {
+  background: rgba(255, 255, 255, 0.15);
+  cursor: not-allowed;
+}
+
+.statusBox {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 6px;
+  color: #e2e8f0;
+}
+
+.statusBoxSuccess {
+  background: rgba(16, 185, 129, 0.15);
+}
+
+.statusBoxInfo {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.credentialBox {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(16, 185, 129, 0.15);
+  border-radius: 6px;
+  color: #e2e8f0;
+}
+
+.proofBox {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(59, 130, 246, 0.15);
+  border-radius: 6px;
+  color: #e2e8f0;
+}
+
+.infoBox {
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+.debugBox {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+}
+
+.list {
+  margin: 0.5rem 0 0 1.5rem;
+  padding-left: 0;
+}
+
+.errorBox {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(248, 113, 113, 0.15);
+  border-radius: 6px;
+  color: #fecaca;
+}
+
+.warningInfoBox {
+  background: rgba(251, 146, 60, 0.12);
+  padding: 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+

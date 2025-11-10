@@ -3,6 +3,7 @@
 .PHONY: all install build test deploy clean help
 .PHONY: sdk-build app-dev contracts-build circuits-build
 .PHONY: deploy-testnet compile-circuits
+.PHONY: vk-age vk-country vk-income
 
 # Default
 all: install build
@@ -15,6 +16,9 @@ help:
 	@echo "  make test             - Executar todos os testes"
 	@echo "  make circuits-build   - Compilar circuitos ZK"
 	@echo "  make deploy-testnet   - Deploy contratos na testnet"
+	@echo "  make vk-age           - Definir VK do circuito de idade no Verifier"
+	@echo "  make vk-country       - Definir VK do circuito de país no Verifier"
+	@echo "  make vk-income        - Definir VK do circuito de renda no Verifier"
 	@echo "  make app-dev          - Iniciar frontend (dev)"
 	@echo "  make clean            - Limpar artifacts"
 
@@ -57,6 +61,22 @@ deploy-testnet:
 		exit 1; \
 	fi
 	bash scripts/deploy-contracts.sh
+
+# ---------- VK helpers ----------
+vk-age:
+	@echo "🗝️  Definindo VK (idade) no Verifier..."
+	@if [ -z "$$SOROBAN_SECRET" ]; then echo "[ERR] Defina SOROBAN_SECRET antes (export SOROBAN_SECRET=SA...)"; exit 1; fi
+	node scripts/set-vk.mjs --circuit age
+
+vk-country:
+	@echo "🗝️  Definindo VK (país) no Verifier..."
+	@if [ -z "$$SOROBAN_SECRET" ]; then echo "[ERR] Defina SOROBAN_SECRET antes (export SOROBAN_SECRET=SA...)"; exit 1; fi
+	node scripts/set-vk.mjs --circuit country
+
+vk-income:
+	@echo "🗝️  Definindo VK (renda) no Verifier..."
+	@if [ -z "$$SOROBAN_SECRET" ]; then echo "[ERR] Defina SOROBAN_SECRET antes (export SOROBAN_SECRET=SA...)"; exit 1; fi
+	node scripts/set-vk.mjs --circuit income
 
 test:
 	@echo "🧪 Executando testes..."

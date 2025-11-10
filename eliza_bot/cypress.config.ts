@@ -1,5 +1,5 @@
-import { defineConfig } from 'cypress';
-import viteConfig from './vite.config';
+import { defineConfig } from 'cypress'
+import viteConfig from './vite.config'
 
 export default defineConfig({
   component: {
@@ -28,4 +28,4 @@ export default defineConfig({
   videosFolder: 'cypress/videos',
   viewportWidth: 1280,
   viewportHeight: 720,
-});
+})

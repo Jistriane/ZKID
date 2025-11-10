@@ -45,7 +45,6 @@ elizaos test
 ElizaOS employs a dual testing strategy:
 
 1. **Component Tests** (`src/__tests__/*.test.ts`)
-
    - Run with Bun's native test runner
    - Fast, isolated tests using mocks
    - Perfect for TDD and component logic
@@ -81,16 +80,16 @@ Component tests use bun:test:
 // Unit test example (__tests__/config.test.ts)
 describe('Configuration', () => {
   it('should load configuration correctly', () => {
-    expect(config.debug).toBeDefined();
-  });
-});
+    expect(config.debug).toBeDefined()
+  })
+})
 
 // Integration test example (__tests__/integration.test.ts)
 describe('Integration: Plugin with Character', () => {
   it('should initialize character with plugins', async () => {
     // Test interactions between components
-  });
-});
+  })
+})
 ```
 
 E2E tests use ElizaOS test interface:
@@ -98,7 +97,7 @@ E2E tests use ElizaOS test interface:
 ```typescript
 // E2E test example (e2e/project.test.ts)
 export class ProjectTestSuite implements TestSuite {
-  name = 'project_test_suite';
+  name = 'project_test_suite'
   tests = [
     {
       name: 'project_initialization',
@@ -106,10 +105,10 @@ export class ProjectTestSuite implements TestSuite {
         // Test project in a real runtime
       },
     },
-  ];
+  ]
 }
 
-export default new ProjectTestSuite();
+export default new ProjectTestSuite()
 ```
 
 The test utilities in `__tests__/utils/` provide helper functions to simplify writing tests.

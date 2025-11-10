@@ -34,10 +34,10 @@ name = "testnet-deployer"
 default = true
 
 [testnet.contracts]
-# Deploy to testnet and specify contract IDs here after deployment
-verifier = { id = "CBMUOMXPCWVYYA75GR6AIJTMUR3W6VOBUQCXJ5GDPRURKDETODUKJWSC" }
-credential_registry = { id = "CB4F5NMRYZ5GYTRPUOYDIU27J23NDNQCAWXZMAOWQ75OWQM7KOMAV7J5" }
-compliance_oracle = { id = "CDVZI3V7S3RIV3INQQRAPMR4FKIQJPR7NRJMDWET6LOSGBMFFCLLERVM" }
+# Updated to latest deployed contract IDs (see deploy/last_deploy.json)
+verifier = { id = "CA64XL6ZGUEDN73SN2TAWHY5XBTWPO43K2HJ6YWV5VPV5V5UZRD6VUC4" }
+credential_registry = { id = "CA44F2HEN2UTJ3XLWTJ4QCON4FXUQJU3L5BFSXRM6UBWOXJAZ7VBTHIO" }
+compliance_oracle = { id = "CDUTFVWQQWTD64HJVI3ZSVAOFSNVULQ2DDXCQRAG5FQGOOJUIZGCUX6G" }
 
 ### Production environment configuration (Mainnet)
 [production.network]

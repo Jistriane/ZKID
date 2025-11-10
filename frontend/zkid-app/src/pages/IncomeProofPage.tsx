@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { generateIncomeProof, verifyAndIssue } from 'zkid-sdk'
-import { ensurePasskey } from '../services/passkeys'
+import { generateIncomeProof } from 'zkid-sdk'
+import { ensureCircuitArtifacts } from '../services/circuitsPreload'
+import { issueCredentialService, verifyIdentityProofService } from '../services/contracts'
+import { getWalletSigner } from '../services/wallet'
 import { useWallet } from '../context/WalletContext'
+import styles from './IncomeProofPage.module.css'
 
 export function IncomeProofPage() {
   const navigate = useNavigate()
@@ -37,24 +40,20 @@ export function IncomeProofPage() {
       setLoading(true)
   setStatus('Generating zero-knowledge income threshold proof...')
       
+      await ensureCircuitArtifacts('income_threshold')
       const proof = await generateIncomeProof({
         circuit: 'income_threshold',
         privateInputs: { income: Number(income) },
-        publicInputs: { minIncome: Number(minIncome) }
+        publicInputs: { minIncome: Number(minIncome), userPublicKey: publicKey! }
       })
 
-      setStatus('Verifying proof on-chain...')
-      const passkey = await ensurePasskey()
+      setStatus('Enviando prova para verificação on-chain (assinatura da carteira)...')
+      const walletSign = await getWalletSigner()
+  const proofHashHex = await verifyIdentityProofService({ network }, publicKey!, proof.proof, proof.publicSignals, walletSign)
       
-      setStatus('Issuing credential...')
-      const result = await verifyAndIssue({
-        proof: proof.proof,
-        publicSignals: proof.publicSignals,
-        userPasskey: passkey,
-        userPublicKey: publicKey as string
-      })
-
-      setCredentialId(result.id)
+      setStatus('Emitindo credencial...')
+  const id = await issueCredentialService(network, publicKey!, proofHashHex, 60*60*24*365, walletSign)
+      setCredentialId(id)
       setStatus('✅ Credential issued successfully!')
       
       setTimeout(() => navigate('/dashboard'), 2000)
@@ -68,78 +67,46 @@ export function IncomeProofPage() {
   }
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto' }}>
-      <h1 style={{ marginBottom: '0.5rem' }}>💰 Income Verification</h1>
-      <p style={{ color: '#666', marginBottom: '2rem' }}>
+    <div className={styles.container}>
+      <h1 className={styles.title}>💰 Income Verification</h1>
+      <p className={styles.subtitle}>
         Prove that your income is above the required minimum without revealing the exact amount.
       </p>
       {network !== 'testnet' && (
-        <div style={{
-          background: 'rgba(251,146,60,0.12)',
-          border: '1px solid rgba(251,146,60,0.3)',
-          borderRadius: 8,
-          padding: '1rem',
-          marginBottom: '1rem'
-        }}>
-          <div style={{ marginBottom: '0.5rem', color: '#fbbf24' }}>
+        <div className={styles.warningBox}>
+          <div className={styles.warningTitle}>
             This flow runs on Testnet. Switch to Testnet to continue.
           </div>
           <button
             onClick={() => setNetwork('testnet')}
-            style={{
-              padding: '0.5rem 0.75rem',
-              background: '#6d6cff',
-              color: 'white',
-              borderRadius: 6,
-              border: 'none',
-              cursor: 'pointer'
-            }}
+            className={styles.connectButton}
           >
             Switch to Testnet
           </button>
         </div>
       )}
 
-      <div style={{
-        background: 'rgba(255,255,255,0.06)',
-        border: '1px solid rgba(255,255,255,0.1)',
-        borderRadius: 8,
-        padding: '2rem',
-        marginBottom: '1rem'
-      }}>
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>
+      <div className={styles.formContainer}>
+        <div className={styles.formGroup}>
+          <label className={styles.label}>
             Your Monthly Income (private)
           </label>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div className={styles.inputGroup}>
             <input
               type="number"
               value={income}
               onChange={e => setIncome(e.target.value)}
               placeholder="5000"
-              style={{
-                flex: 1,
-                padding: '0.75rem',
-                border: '1px solid rgba(255,255,255,0.15)',
-                background: 'rgba(0,0,0,0.3)',
-                color: '#e2e8f0',
-                borderRadius: 6,
-                fontSize: '1rem'
-              }}
+              className={styles.input}
               disabled={loading}
             />
             <select
               value={currency}
               onChange={e => setCurrency(e.target.value)}
-              style={{
-                padding: '0.75rem',
-                border: '1px solid rgba(255,255,255,0.15)',
-                background: 'rgba(0,0,0,0.3)',
-                color: '#e2e8f0',
-                borderRadius: 6,
-                fontSize: '1rem'
-              }}
+              className={styles.select}
               disabled={loading}
+              aria-label="Currency selection"
+              title="Select currency"
             >
               <option value="BRL">BRL</option>
               <option value="USD">USD</option>
@@ -147,107 +114,63 @@ export function IncomeProofPage() {
               <option value="MXN">MXN</option>
             </select>
           </div>
-          <small style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
+          <small className={styles.hint}>
             ℹ️ This data never leaves your device
           </small>
         </div>
 
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>
+        <div className={styles.formGroup}>
+          <label className={styles.label}>
             Minimum Required Income ({currency})
           </label>
           <input
             type="number"
             value={minIncome}
             onChange={e => setMinIncome(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              border: '1px solid rgba(255,255,255,0.15)',
-              background: 'rgba(0,0,0,0.3)',
-              color: '#e2e8f0',
-              borderRadius: 6,
-              fontSize: '1rem'
-            }}
+            className={styles.input}
             disabled={loading}
+            aria-label="Minimum required income"
+            title="Enter minimum required income"
+            placeholder="Enter minimum income"
           />
         </div>
 
         <button
           onClick={handleGenerate}
           disabled={loading}
-          style={{
-            width: '100%',
-            padding: '1rem',
-            background: loading ? 'rgba(255,255,255,0.15)' : '#6d6cff',
-            color: 'white',
-            border: 'none',
-            borderRadius: 6,
-            fontSize: '1rem',
-            fontWeight: 600,
-            cursor: loading ? 'not-allowed' : 'pointer'
-          }}
+          className={styles.submitButton}
         >
           {loading ? 'Processing...' : 'Generate Proof and Issue'}
         </button>
 
         {status && (
-          <div style={{
-            marginTop: '1rem',
-            padding: '1rem',
-            background: credentialId ? 'rgba(16,185,129,0.15)' : 'rgba(59,130,246,0.15)',
-            borderRadius: 6,
-            color: '#e2e8f0'
-          }}>
+          <div className={credentialId ? styles.statusBoxSuccess : styles.statusBoxInfo}>
             {status}
           </div>
         )}
 
         {error && (
-          <div style={{
-            marginTop: '1rem',
-            padding: '1rem',
-            background: 'rgba(248,113,113,0.15)',
-            borderRadius: 6,
-            color: '#fecaca'
-          }}>
+          <div className={styles.errorBox}>
             ❌ {error}
           </div>
         )}
 
         {credentialId && (
-          <div style={{
-            marginTop: '1rem',
-            padding: '1rem',
-            background: 'rgba(255,255,255,0.04)',
-            borderRadius: 6,
-            fontSize: '0.875rem'
-          }}>
+          <div className={styles.credentialBox}>
             <strong>Credential ID:</strong><br />
             <code>{credentialId}</code>
           </div>
         )}
       </div>
 
-      <div style={{
-        background: 'rgba(251,146,60,0.12)',
-        padding: '1rem',
-        borderRadius: 6,
-        fontSize: '0.875rem',
-        marginBottom: '1rem'
-      }}>
+      <div className={styles.warningInfoBox}>
         <strong>🔒 Privacy guaranteed:</strong> The ZK proof only proves that your
         income is above the minimum, without revealing the exact amount.
       </div>
 
-      <div style={{
-        background: 'rgba(59,130,246,0.12)',
-        padding: '1rem',
-        borderRadius: 6,
-        fontSize: '0.875rem'
-      }}>
+      <div className={styles.infoBox}>
         <strong>📊 Use cases:</strong>
-        <ul style={{ margin: '0.5rem 0 0 1.5rem', paddingLeft: 0 }}>
+        <ul className={styles.list}>
           <li>Loans and financing</li>
           <li>Property rental</li>
           <li>Premium bank account opening</li>

@@ -5,9 +5,10 @@ TypeScript SDK for interacting with ZKID Soroban smart contracts on Stellar.
 ## Features
 
 ✅ **Auto-generated Contract Clients** - Type-safe TypeScript clients for all ZKID contracts  
-✅ **Zero-Knowledge Proof Generation** - Create and verify ZK proofs for identity claims  
+✅ **Zero-Knowledge Proof Generation** - Create and verify ZK proofs for identity claims with wallet binding  
 ✅ **Credential Management** - Issue and validate on-chain credentials  
-✅ **Compliance Integration** - Built-in sanctions checking and compliance oracle
+✅ **Compliance Integration** - Built-in sanctions checking and compliance oracle  
+✅ **Wallet-Required Flow** - All proof generation and verification require connected wallet for security
 
 ## Installation
 
@@ -43,7 +44,38 @@ const credentialRegistry = new CredentialRegistryClient({
 });
 ```
 
-### 2. Read Contract State
+### 2. Generate Zero-Knowledge Proofs (Wallet Required)
+
+**Important:** All proof generation now requires a connected wallet's public key to bind the proof to the caller. This prevents replay attacks and ensures proofs are wallet-specific.
+
+```typescript
+import { generateProof, setConfig } from 'zkid-sdk';
+
+// Configure SDK with wallet signer
+setConfig({
+  network: 'testnet',
+  rpcUrl: 'https://soroban-testnet.stellar.org',
+  verifierId: ZKID_CONTRACTS.testnet.verifier,
+  registryId: ZKID_CONTRACTS.testnet.credentialRegistry,
+  complianceId: ZKID_CONTRACTS.testnet.complianceOracle,
+  signTransaction: async (xdr, opts) => {
+    // Use your wallet's signing method (Freighter, Albedo, etc.)
+    return await window.freighter.signTransaction(xdr, opts);
+  },
+  simulationSource: 'GXXX...' // Your wallet's public key
+});
+
+// Generate age verification proof
+const ageProof = await generateProof({
+  circuit: 'age_verification',
+  privateInputs: { birthdate: '1990-01-01' },
+  publicInputs: { 
+    minAge: 18, 
+    currentDate: '2025-11-09',
+    userPublicKey: 'GXXX...' // REQUIRED: Binds proof to this wallet
+  }
+});
+```
 
 ```typescript
 // Check contract version

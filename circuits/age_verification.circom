@@ -11,6 +11,9 @@ template AgeVerification() {
     signal input birthYear;       // privado (ex.: 1990)
     signal input currentYear;     // público (ex.: 2025)
     signal input minAge;          // público (ex.: 18)
+    // Novo: hash (reduzido) da carteira (público) para bind da prova ao address
+    // Gerado off-chain: addrHash = SHA256(address) mod p (ou truncado) 
+    signal input addrHash;        // público
 
     // Saída
     signal output is_adult;       // 1 se idade >= minAge, senão 0
@@ -25,7 +28,9 @@ template AgeVerification() {
     ageCheck.in[0] <== age;
     ageCheck.in[1] <== minAge;
     
+    // addrHash não participa da lógica, mas força inclusão como public input
+    // garantindo que a prova gerada é específica para a carteira.
     is_adult <== ageCheck.out;
 }
 
-component main {public [currentYear, minAge]} = AgeVerification();
+component main {public [currentYear, minAge, addrHash]} = AgeVerification();

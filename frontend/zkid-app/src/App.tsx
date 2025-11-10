@@ -1,6 +1,9 @@
 import { useEffect } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { setConfig } from 'zkid-sdk'
+
+// Tipo estendido enquanto o pacote local é atualizado (inclui novos campos strict mode)
+type ExtendedZkidConfig = Parameters<typeof setConfig>[0]
 import { WalletProvider } from './context/WalletContext'
 import { Layout } from './components/Layout'
 import { HomePage } from './pages/HomePage'
@@ -16,30 +19,42 @@ import { ElizaDemoPage } from './pages/ElizaDemoPage'
 
 export function App() {
   useEffect(() => {
-  // Configure SDK with environment variables
-  // Normalize env network: internal uses 'testnet' | 'mainnet'; external Horizon still calls mainnet 'public'
-  const rawNetwork = (import.meta.env.VITE_NETWORK || 'testnet').toLowerCase()
-  const internalNetwork = (rawNetwork === 'public' ? 'mainnet' : rawNetwork) as 'testnet' | 'mainnet'
-    const rpcUrl = import.meta.env.VITE_SOROBAN_RPC
-    const verifierId = import.meta.env.VITE_VERIFIER_CONTRACT_ID
-    const registryId = import.meta.env.VITE_REGISTRY_CONTRACT_ID
-    const complianceId = import.meta.env.VITE_COMPLIANCE_CONTRACT_ID
-    
-  // SDK expects 'testnet' | 'public'
-  const sdkNetwork = internalNetwork === 'mainnet' ? 'public' : internalNetwork
-    // Callback opcional de assinatura (Freighter)
-    const signTransaction = async (xdr: string, opts: { networkPassphrase: string }) => {
-      try {
+  (async () => {
+      // Configure SDK with environment variables
+      // Normalize env network: internal uses 'testnet' | 'mainnet'; external Horizon still calls mainnet 'public'
+      const rawNetwork = (import.meta.env.VITE_NETWORK || 'testnet').toLowerCase()
+      const internalNetwork = (rawNetwork === 'public' ? 'mainnet' : rawNetwork) as 'testnet' | 'mainnet'
+      const rpcUrl = import.meta.env.VITE_SOROBAN_RPC
+      const verifierId = import.meta.env.VITE_VERIFIER_CONTRACT_ID
+      const registryId = import.meta.env.VITE_REGISTRY_CONTRACT_ID
+      const complianceId = import.meta.env.VITE_COMPLIANCE_CONTRACT_ID
+  // Parâmetros legados de simulação e mock removidos: fluxo requer carteira real.
+
+      // SDK expects 'testnet' | 'public'
+      const sdkNetwork = internalNetwork === 'mainnet' ? 'public' : internalNetwork
+
+      // Tentar obter publicKey do Freighter para simulação e assinatura
+      // Obter publicKey somente para assinatura on-demand (não armazenamos simulationSource)
+
+      // Callback obrigatório de assinatura (Freighter)
+      const signTransaction = async (xdr: string, opts: { networkPassphrase: string }) => {
         if (typeof window !== 'undefined' && window.freighter?.signTransaction) {
           const networkLabel = sdkNetwork === 'public' ? 'PUBLIC' : 'TESTNET'
           return await window.freighter.signTransaction(xdr, { network: networkLabel, networkPassphrase: opts.networkPassphrase })
         }
-      } catch (err) {
-        console.warn('[App] signTransaction callback falhou, retornando XDR original', err)
+        throw new Error('Carteira não disponível para assinatura')
       }
-      return xdr // fallback sem assinatura (irá falhar em require_auth, mas útil p/ desenvolvimento)
-    }
-    setConfig({ network: sdkNetwork, rpcUrl, verifierId, registryId, complianceId, signTransaction })
+
+      const cfg: ExtendedZkidConfig = {
+        network: sdkNetwork,
+        rpcUrl,
+        verifierId,
+        registryId,
+        complianceId,
+        signTransaction,
+      }
+      setConfig(cfg)
+    })()
   }, [])
 
   const router = createBrowserRouter([

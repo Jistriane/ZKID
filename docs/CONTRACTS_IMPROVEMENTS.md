@@ -24,9 +24,11 @@
 **Versão**: v1.0.0 → **v1.0.1**
 
 #### Melhorias de Segurança
+
 - ✅ Mantida verificação de autenticação do admin em `set_verification_key`
 
 #### Tratamento de Erros
+
 ```rust
 // ANTES
 pub fn verify_identity_proof(env: Env, proof: Vec<Bytes>, public_inputs: Vec<Bytes>) -> bool {
@@ -35,8 +37,8 @@ pub fn verify_identity_proof(env: Env, proof: Vec<Bytes>, public_inputs: Vec<Byt
 
 // DEPOIS
 pub fn verify_identity_proof(
-    env: Env, 
-    proof: Vec<Bytes>, 
+    env: Env,
+    proof: Vec<Bytes>,
     public_inputs: Vec<Bytes>
 ) -> Result<bool, VerifierError> {
     if !env.storage().instance().has(&DataKey::Vk) {
@@ -47,6 +49,7 @@ pub fn verify_identity_proof(
 ```
 
 #### Novos Tipos de Erro
+
 ```rust
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
@@ -60,6 +63,7 @@ pub enum VerifierError {
 ```
 
 #### Testes Adicionados
+
 - ✅ `test_reject_empty_inputs` - valida rejeição de inputs vazios
 - ✅ `test_reject_invalid_size` - valida rejeição de proof com tamanho errado
 - ✅ Testes existentes atualizados com validação de `Result`
@@ -73,6 +77,7 @@ pub enum VerifierError {
 **Versão**: v0.1.0 → **v0.2.0**
 
 #### Melhorias de Segurança
+
 ```rust
 // ANTES
 pub fn issue_credential(env: Env, owner: Address, proof_hash: Bytes, ttl_seconds: u64) {
@@ -86,6 +91,7 @@ pub fn issue_credential(env: Env, owner: Address, proof_hash: Bytes, ttl_seconds
 ```
 
 #### Controle de Acesso em Revogação
+
 ```rust
 // ANTES
 pub fn revoke(env: Env, credential_id: Bytes) -> bool {
@@ -95,7 +101,7 @@ pub fn revoke(env: Env, credential_id: Bytes) -> bool {
 // DEPOIS
 pub fn revoke(env: Env, caller: Address, credential_id: Bytes) -> Result<(), CredentialError> {
     caller.require_auth();
-    
+
     // Apenas o owner pode revogar sua própria credencial
     if cred.owner != caller {
         return Err(CredentialError::Unauthorized);
@@ -104,6 +110,7 @@ pub fn revoke(env: Env, caller: Address, credential_id: Bytes) -> Result<(), Cre
 ```
 
 #### Novos Tipos de Erro
+
 ```rust
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
@@ -117,6 +124,7 @@ pub enum CredentialError {
 ```
 
 #### Nova Função Utilitária
+
 ```rust
 /// Retorna credencial completa (para debugging/admin)
 pub fn get_credential(env: Env, credential_id: Bytes) -> Option<Credential> {
@@ -134,6 +142,7 @@ pub fn get_credential(env: Env, credential_id: Bytes) -> Option<Credential> {
 **Versão**: v0.2.0 → **v0.3.0**
 
 #### Substituição de Panics por Erros
+
 ```rust
 // ANTES
 pub fn init(env: Env, admin: Address) {
@@ -152,6 +161,7 @@ pub fn init(env: Env, admin: Address) -> Result<(), ComplianceError> {
 ```
 
 #### Validação de Admin
+
 ```rust
 // ANTES
 pub fn set_sanction_status(env: Env, caller: Address, ...) {
@@ -160,15 +170,15 @@ pub fn set_sanction_status(env: Env, caller: Address, ...) {
 
 // DEPOIS
 pub fn set_sanction_status(
-    env: Env, 
-    caller: Address, 
-    proof_hash: Bytes, 
+    env: Env,
+    caller: Address,
+    proof_hash: Bytes,
     is_sanctioned: bool
 ) -> Result<(), ComplianceError> {
     let admin = env.storage().instance()
         .get::<_, Address>(&DataKey::Admin)
         .ok_or(ComplianceError::AdminNotSet)?;
-    
+
     if caller != admin {
         return Err(ComplianceError::Unauthorized);
     }
@@ -176,6 +186,7 @@ pub fn set_sanction_status(
 ```
 
 #### Novos Tipos de Erro
+
 ```rust
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
@@ -188,6 +199,7 @@ pub enum ComplianceError {
 ```
 
 #### Nova Função Utilitária
+
 ```rust
 /// Retorna endereço do admin (para verificação)
 pub fn get_admin(env: Env) -> Option<Address> {
@@ -203,11 +215,13 @@ pub fn get_admin(env: Env) -> Option<Address> {
 
 ### Sistema de Eventos
 
-**Problema Identificado**: 
+**Problema Identificado**:
+
 - API `#[contractevent]` moderna não compatível com `soroban-sdk 23.0.2`
 - Erro de serialização: `trait bound Val: TryFromVal<Env, EventStruct> not satisfied`
 
 **Solução Implementada**:
+
 ```rust
 // Tentativa inicial (falhou)
 #[contractevent]
@@ -230,6 +244,7 @@ env.events().publish(
 ## 📊 Resultados
 
 ### Compilação
+
 ```bash
 ✅ verifier: Compilado com warnings (eventos deprecated)
 ✅ credential-registry: Compilado com warnings (eventos deprecated)
@@ -237,6 +252,7 @@ env.events().publish(
 ```
 
 ### Testes
+
 ```bash
 ✅ verifier: 4/4 testes passando
 ✅ credential-registry: 0 testes (sem suite ainda)
@@ -244,6 +260,7 @@ env.events().publish(
 ```
 
 ### WASMs Gerados
+
 ```bash
 target/wasm32-unknown-unknown/release/
   ├── verifier.wasm
@@ -256,12 +273,14 @@ target/wasm32-unknown-unknown/release/
 ## 🔄 Próximos Passos Sugeridos
 
 ### Curto Prazo (Essential)
+
 1. **Adicionar Testes**:
    - Suite completa para `credential-registry`
    - Suite completa para `compliance-oracle`
    - Testes de integração entre contratos
 
 2. **Gerar Bindings TypeScript**:
+
    ```bash
    soroban contract bindings typescript \
      --wasm target/wasm32-unknown-unknown/release/verifier.wasm \
@@ -274,6 +293,7 @@ target/wasm32-unknown-unknown/release/
    - Documentar novos parâmetros (`caller` em `revoke`, etc.)
 
 ### Médio Prazo (Important)
+
 4. **Upgrade SDK Soroban**:
    - Avaliar compatibilidade com versão 24.x ou 25.x
    - Migrar para API moderna de eventos (`#[contractevent]`)
@@ -290,6 +310,7 @@ target/wasm32-unknown-unknown/release/
    - Documentar novos erros e como tratá-los no frontend
 
 ### Longo Prazo (Nice to Have)
+
 7. **Otimizações**:
    - Análise de tamanho dos WASMs
    - Otimização de storage (persistent vs temporary)
@@ -305,9 +326,11 @@ target/wasm32-unknown-unknown/release/
 ## 🐛 Issues Conhecidos
 
 ### Warnings de Deprecated API
+
 **Mensagem**:
+
 ```
-warning: use of deprecated method `soroban_sdk::events::Events::publish`: 
+warning: use of deprecated method `soroban_sdk::events::Events::publish`:
 use the #[contractevent] macro on a contract event type
 ```
 
@@ -319,13 +342,13 @@ use the #[contractevent] macro on a contract event type
 
 ## 📈 Métricas de Melhoria
 
-| Aspecto | Antes | Depois | Melhoria |
-|---------|-------|--------|----------|
-| **Tipos de Erro** | Genéricos (bool/panic) | Específicos (11 tipos) | +100% |
-| **Validação de Auth** | Parcial | Completa | +50% |
-| **Funções Result** | 40% | 85% | +112% |
-| **Testes Verifier** | 2 | 4 | +100% |
-| **Documentação** | Básica | Completa | +200% |
+| Aspecto               | Antes                  | Depois                 | Melhoria |
+| --------------------- | ---------------------- | ---------------------- | -------- |
+| **Tipos de Erro**     | Genéricos (bool/panic) | Específicos (11 tipos) | +100%    |
+| **Validação de Auth** | Parcial                | Completa               | +50%     |
+| **Funções Result**    | 40%                    | 85%                    | +112%    |
+| **Testes Verifier**   | 2                      | 4                      | +100%    |
+| **Documentação**      | Básica                 | Completa               | +200%    |
 
 ---
 
@@ -335,30 +358,30 @@ use the #[contractevent] macro on a contract event type
 
 ```typescript
 // ANTES
-const isValid = await verifier.verify_identity_proof(proof, inputs);
+const isValid = await verifier.verify_identity_proof(proof, inputs)
 if (!isValid) {
-  console.error("Proof inválido");
+  console.error('Proof inválido')
 }
 
 // DEPOIS
 try {
-  const result = await verifier.verify_identity_proof(proof, inputs);
+  const result = await verifier.verify_identity_proof(proof, inputs)
   if (result.is_ok()) {
-    const isValid = result.unwrap();
+    const isValid = result.unwrap()
   } else {
-    const error = result.unwrap_err();
-    switch(error) {
+    const error = result.unwrap_err()
+    switch (error) {
       case VerifierError.VkNotSet:
-        console.error("Chave de verificação não configurada");
-        break;
+        console.error('Chave de verificação não configurada')
+        break
       case VerifierError.EmptyProof:
-        console.error("Proof vazio fornecido");
-        break;
+        console.error('Proof vazio fornecido')
+        break
       // etc...
     }
   }
 } catch (e) {
-  console.error("Erro de rede/contrato:", e);
+  console.error('Erro de rede/contrato:', e)
 }
 ```
 
@@ -366,10 +389,10 @@ try {
 
 ```typescript
 // ANTES
-await registry.revoke(credentialId);
+await registry.revoke(credentialId)
 
 // DEPOIS
-await registry.revoke(callerAddress, credentialId);
+await registry.revoke(callerAddress, credentialId)
 ```
 
 ---
@@ -377,6 +400,7 @@ await registry.revoke(callerAddress, credentialId);
 ## 📝 Changelog Técnico
 
 ### [v1.0.1] - 2025-01-19 - Verifier
+
 - Added: `VerifierError` enum com 4 tipos
 - Changed: `verify_identity_proof` retorna `Result<bool, VerifierError>`
 - Added: Validações explícitas em cada etapa
@@ -384,6 +408,7 @@ await registry.revoke(callerAddress, credentialId);
 - Fixed: Tratamento de erros em vez de retorno silencioso de `false`
 
 ### [v0.2.0] - 2025-01-19 - Credential Registry
+
 - Added: `CredentialError` enum com 4 tipos
 - Added: `require_auth()` em `issue_credential`
 - Changed: `revoke` agora recebe `caller: Address`
@@ -393,6 +418,7 @@ await registry.revoke(callerAddress, credentialId);
 - Fixed: Controle de acesso inadequado
 
 ### [v0.3.0] - 2025-01-19 - Compliance Oracle
+
 - Added: `ComplianceError` enum com 3 tipos
 - Changed: `init` retorna `Result<(), ComplianceError>`
 - Changed: `set_sanction_status` retorna `Result<(), ComplianceError>`
@@ -434,5 +460,5 @@ Antes de fazer deploy em produção:
 
 ---
 
-*Documento gerado automaticamente em 2025-01-19*  
-*Última atualização: Após refatoração completa dos 3 contratos*
+_Documento gerado automaticamente em 2025-01-19_  
+_Última atualização: Após refatoração completa dos 3 contratos_

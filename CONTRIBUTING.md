@@ -5,9 +5,11 @@ Obrigado pelo interesse em contribuir! 🎉
 ## Como Contribuir
 
 ### 1. Setup Local
+
 Siga as instruções do [README.md](../README.md) para configurar o ambiente de desenvolvimento.
 
 ### 2. Criar Branch
+
 ```bash
 git checkout -b feature/minha-feature
 # ou
@@ -15,6 +17,7 @@ git checkout -b fix/meu-bugfix
 ```
 
 ### 3. Fazer Mudanças
+
 - Mantenha commits pequenos e focados
 - Use mensagens de commit descritivas em inglês:
   - `feat: adicionar verificação de país`
@@ -23,6 +26,7 @@ git checkout -b fix/meu-bugfix
   - `test: adicionar testes para SDK`
 
 ### 4. Testes e Lint
+
 ```bash
 npm test
 npm run lint
@@ -30,6 +34,7 @@ npm run typecheck
 ```
 
 ### 5. Submit PR
+
 - Descreva claramente as mudanças
 - Referencie issues relacionadas
 - Aguarde code review
@@ -46,17 +51,20 @@ npm run typecheck
 ## Padrões de Código
 
 ### TypeScript
+
 - Use TypeScript strict mode
 - Documente funções públicas
 - Evite `any` (prefira `unknown`)
 - Use imports absolutos quando possível
 
 ### Rust
+
 - Siga convenções do Soroban
 - Documente contratos e funções públicas
 - Adicione testes unitários
 
 ### Circom
+
 - Comente a lógica dos circuitos
 - Forneça inputs de exemplo
 - Teste provas localmente antes de commitar

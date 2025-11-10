@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { generateCountryProof, verifyAndIssue } from 'zkid-sdk'
-import { ensurePasskey } from '../services/passkeys'
+import { generateCountryProof } from 'zkid-sdk'
+import { ensureCircuitArtifacts } from '../services/circuitsPreload'
+import { issueCredentialService, verifyIdentityProofService } from '../services/contracts'
+import { getWalletSigner } from '../services/wallet'
 import { useWallet } from '../context/WalletContext'
+import styles from './CountryProofPage.module.css'
 
 const ALLOWED_COUNTRIES = ['BR', 'US', 'AR', 'MX', 'CL', 'CO', 'PE', 'UY']
 
@@ -41,21 +44,30 @@ export function CountryProofPage() {
 
     try {
       setLoading(true)
-  setStatus('Generating country equality zero-knowledge proof...')
+      setStatus('Generating country equality zero-knowledge proof...')
+      
+      // Validar artefatos uma vez antes do loop
+      await ensureCircuitArtifacts('country_verification')
+      
       // For privacy we only prove membership by checking equality with one target at a time.
       // We'll iterate until one matches or all fail.
-  let proofResult: { proof: unknown; publicSignals: unknown } | null = null
+      let proofResult: { proof: unknown; publicSignals: unknown } | null = null
       for (const target of allowedList) {
         const countryCode = isoAlpha2ToNumeric(country)
         const targetCode = isoAlpha2ToNumeric(target)
+        
         const proof = await generateCountryProof({
           circuit: 'country_verification',
           privateInputs: { countryCode },
-          publicInputs: { targetCode }
+          publicInputs: { targetCode, userPublicKey: publicKey! }
         })
-        // publicSignals mock fallback shape { is_target }
-  const ps = proof.publicSignals as { is_target?: boolean }
-  const ok = ps?.is_target === true
+        
+        // publicSignals é array: [is_target] onde is_target = 1 se match, 0 caso contrário
+  const publicSignals = proof.publicSignals as (number | string)[]
+  const first = Array.isArray(publicSignals) ? publicSignals[0] : undefined
+  const numeric = typeof first === 'string' ? parseInt(first, 10) : typeof first === 'number' ? first : 0
+  const ok = numeric === 1
+        
         if (ok) {
           proofResult = proof
           break
@@ -65,18 +77,13 @@ export function CountryProofPage() {
         throw new Error('Country not in allowed list (proof failed).')
       }
 
-      setStatus('Verifying proof on-chain...')
-      const passkey = await ensurePasskey()
+      setStatus('Enviando prova para verificação on-chain (assinatura da carteira)...')
+      const walletSign = await getWalletSigner()
+  const proofHashHex = await verifyIdentityProofService({ network }, publicKey!, proofResult.proof, proofResult.publicSignals, walletSign)
       
-      setStatus('Issuing credential...')
-      const result = await verifyAndIssue({
-        proof: proofResult.proof,
-        publicSignals: proofResult.publicSignals,
-        userPasskey: passkey,
-        userPublicKey: publicKey as string
-      })
-
-      setCredentialId(result.id)
+      setStatus('Emitindo credencial...')
+  const id = await issueCredentialService(network, publicKey!, proofHashHex, 60*60*24*365, walletSign)
+      setCredentialId(id)
       setStatus('✅ Credential issued successfully!')
       
       setTimeout(() => navigate('/dashboard'), 2000)
@@ -113,97 +120,64 @@ export function CountryProofPage() {
   }
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto' }}>
-      <h1 style={{ marginBottom: '0.5rem' }}>🌎 Country Verification</h1>
-  <p style={{ color: '#666', marginBottom: '2rem' }}>
-  Prove you are from an allowed country without revealing your exact nationality.
+    <div className={styles.container}>
+      <h1 className={styles.title}>🌎 Country Verification</h1>
+      <p className={styles.subtitle}>
+        Prove you are from an allowed country without revealing your exact nationality.
       </p>
       {network !== 'testnet' && (
-        <div style={{
-          background: 'rgba(251,146,60,0.12)',
-          border: '1px solid rgba(251,146,60,0.3)',
-          borderRadius: 8,
-          padding: '1rem',
-          marginBottom: '1rem'
-        }}>
-          <div style={{ marginBottom: '0.5rem', color: '#fbbf24' }}>
+        <div className={styles.warningBox}>
+          <div className={styles.warningTitle}>
             This flow runs on Testnet. Switch to Testnet to continue.
           </div>
           <button
             onClick={() => setNetwork('testnet')}
-            style={{
-              padding: '0.5rem 0.75rem',
-              background: '#6d6cff',
-              color: 'white',
-              borderRadius: 6,
-              border: 'none',
-              cursor: 'pointer'
-            }}
+            className={styles.connectButton}
           >
             Switch to Testnet
           </button>
         </div>
       )}
 
-      <div style={{
-        background: 'rgba(255,255,255,0.06)',
-        border: '1px solid rgba(255,255,255,0.1)',
-        borderRadius: 8,
-        padding: '2rem',
-        marginBottom: '1rem'
-      }}>
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>
+      <div className={styles.formContainer}>
+        <div className={styles.formGroup}>
+          <label className={styles.label}>
             Your Country (private)
           </label>
           <select
             value={country}
             onChange={e => setCountry(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              border: '1px solid rgba(255,255,255,0.15)',
-              background: 'rgba(0,0,0,0.3)',
-              color: '#e2e8f0',
-              borderRadius: 6,
-              fontSize: '1rem'
-            }}
+            className={styles.select}
             disabled={loading}
+            aria-label="Your country selection"
+            title="Select your country"
           >
             {ALLOWED_COUNTRIES.map(code => (
               <option key={code} value={code}>{code}</option>
             ))}
           </select>
-          <small style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
+          <small className={styles.hint}>
             ℹ️ This data never leaves your device
           </small>
         </div>
 
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>
+        <div className={styles.formGroup}>
+          <label className={styles.label}>
             Allowed Countries (public)
           </label>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div className={styles.countryButtonsContainer}>
             {ALLOWED_COUNTRIES.map(code => (
               <button
                 key={code}
                 onClick={() => toggleCountryInList(code)}
                 disabled={loading}
-                style={{
-                  padding: '0.5rem 1rem',
-                  background: allowedList.includes(code) ? '#6d6cff' : 'rgba(255,255,255,0.06)',
-                  color: allowedList.includes(code) ? 'white' : '#e2e8f0',
-                  border: `1px solid ${allowedList.includes(code) ? '#6d6cff' : 'rgba(255,255,255,0.15)'}`,
-                  borderRadius: 6,
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  fontWeight: 500
-                }}
+                className={`${styles.countryButton} ${allowedList.includes(code) ? styles.countryButtonSelected : ''}`}
               >
                 {code}
               </button>
             ))}
           </div>
-          <small style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
+          <small className={styles.hint}>
             Select the countries that can access the service
           </small>
         </div>
@@ -211,65 +185,32 @@ export function CountryProofPage() {
         <button
           onClick={handleGenerate}
           disabled={loading}
-          style={{
-            width: '100%',
-            padding: '1rem',
-            background: loading ? 'rgba(255,255,255,0.15)' : '#6d6cff',
-            color: 'white',
-            border: 'none',
-            borderRadius: 6,
-            fontSize: '1rem',
-            fontWeight: 600,
-            cursor: loading ? 'not-allowed' : 'pointer'
-          }}
+          className={styles.submitButton}
         >
           {loading ? 'Processing...' : 'Generate Proof and Issue'}
         </button>
 
         {status && (
-          <div style={{
-            marginTop: '1rem',
-            padding: '1rem',
-            background: credentialId ? 'rgba(16,185,129,0.15)' : 'rgba(59,130,246,0.15)',
-            borderRadius: 6,
-            color: '#e2e8f0'
-          }}>
+          <div className={credentialId ? styles.statusBoxSuccess : styles.statusBoxInfo}>
             {status}
           </div>
         )}
 
         {error && (
-          <div style={{
-            marginTop: '1rem',
-            padding: '1rem',
-            background: 'rgba(248,113,113,0.15)',
-            borderRadius: 6,
-            color: '#fecaca'
-          }}>
+          <div className={styles.errorBox}>
             ❌ {error}
           </div>
         )}
 
         {credentialId && (
-          <div style={{
-            marginTop: '1rem',
-            padding: '1rem',
-            background: 'rgba(255,255,255,0.04)',
-            borderRadius: 6,
-            fontSize: '0.875rem'
-          }}>
+          <div className={styles.credentialBox}>
             <strong>Credential ID:</strong><br />
             <code>{credentialId}</code>
           </div>
         )}
       </div>
 
-      <div style={{
-        background: 'rgba(251,146,60,0.12)',
-        padding: '1rem',
-        borderRadius: 6,
-        fontSize: '0.875rem'
-      }}>
+      <div className={styles.warningInfoBox}>
         <strong>🔒 Privacy guaranteed:</strong> The ZK proof proves that you belong
         to the allowed set of countries, without revealing which one specifically.
       </div>

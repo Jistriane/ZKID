@@ -9,6 +9,7 @@ include "circomlib/circuits/comparators.circom";
 template IncomeThreshold() {
     signal input income;     // privado (ex.: 50000)
     signal input threshold;  // público (ex.: 30000)
+    signal input addrHash;   // público: hash da carteira
     signal output ok;        // 1 se income >= threshold
 
     // GreaterEqThan com 32 bits (suporta até ~4 bilhões)
@@ -16,7 +17,8 @@ template IncomeThreshold() {
     check.in[0] <== income;
     check.in[1] <== threshold;
     
+    // addrHash não altera lógica, apenas força binding
     ok <== check.out;
 }
 
-component main {public [threshold]} = IncomeThreshold();
+component main {public [threshold, addrHash]} = IncomeThreshold();

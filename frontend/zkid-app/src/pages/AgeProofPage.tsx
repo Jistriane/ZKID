@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { generateProof, hashProof } from 'zkid-sdk'
+import { generateProof } from 'zkid-sdk'
+import { ensureCircuitArtifacts } from '../services/circuitsPreload'
 import { issueCredentialService, verifyIdentityProofService } from '../services/contracts'
 import { getWalletSigner } from '../services/wallet'
 import { Card, CardContent } from '../components/ui/Card'
@@ -37,21 +38,21 @@ export function AgeProofPage() {
 
     try {
       setLoading(true)
-      setStatus('Generating ZK proof...')
+  setStatus('Gerando prova ZK (local)...')
       
       const currentDate = new Date().toISOString().slice(0, 10)
+      // Preload/validar artefatos antes de gerar prova
+      await ensureCircuitArtifacts('age_verification')
       const proofArtifacts = await generateProof({
         circuit: 'age_verification',
         privateInputs: { birthdate },
-        publicInputs: { minAge: Number(minAge), currentDate }
+        publicInputs: { minAge: Number(minAge), currentDate, userPublicKey: publicKey! }
       })
-      setStatus('Simulating verification...')
-      const ok = await verifyIdentityProofService(network, proofArtifacts.proof, proofArtifacts.publicSignals)
-      if (!ok) throw new Error('Proof inválida no contrato Verifier')
-
-      setStatus('Issuing credential on-chain...')
-      const proofHashHex = hashProof(proofArtifacts)
+      setStatus('Enviando prova para verificação on-chain (assinatura da carteira)...')
       const walletSign = await getWalletSigner()
+  const proofHashHex = await verifyIdentityProofService({ network }, publicKey!, proofArtifacts.proof, proofArtifacts.publicSignals, walletSign)
+
+      setStatus('Emitindo credencial on-chain...')
       const signedId = await issueCredentialService(
         network,
         publicKey!,
@@ -75,7 +76,7 @@ export function AgeProofPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-4">
       <div>
-        <h1 className="mb-2">🎂 Age Verification</h1>
+  <h1 className="mb-2">🎂 Age Verification (Wallet-Signed)</h1>
         <p className="text-slate-300">
           Prove you are of legal age without revealing your exact date of birth.
         </p>
@@ -98,8 +99,10 @@ export function AgeProofPage() {
               onChange={e => setBirthdate(e.target.value)}
               className="form-input"
               disabled={loading}
+              aria-label="Date of Birth"
+              placeholder="YYYY-MM-DD"
             />
-            <span className="form-hint">ℹ️ This data never leaves your device</span>
+            <span className="form-hint">ℹ️ Dados privados, apenas commitment (hash) vai on-chain</span>
           </div>
 
           <div className="form-group">
@@ -110,6 +113,8 @@ export function AgeProofPage() {
               onChange={e => setMinAge(e.target.value)}
               className="form-input"
               disabled={loading}
+              aria-label="Minimum Age"
+              placeholder="18"
             />
           </div>
 
@@ -145,7 +150,7 @@ export function AgeProofPage() {
             <div>
               <strong className="text-white">Privacy guaranteed:</strong>
               <p className="text-sm text-slate-300 mt-1 mb-0">
-                The ZK proof is generated locally. Only the fact that you are of legal age is verified on-chain, without exposing your date of birth.
+                A prova ZK é gerada localmente e enviada on-chain com assinatura da sua carteira. Somente o fato de você ser maior de idade é verificado, sem revelar sua data de nascimento.
               </p>
             </div>
           </div>

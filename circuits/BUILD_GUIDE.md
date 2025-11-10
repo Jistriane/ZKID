@@ -35,6 +35,7 @@ bash scripts/build-circuits.sh
 ```
 
 This will:
+
 1. Download Powers of Tau file (~50MB) if needed
 2. Compile each circuit (age_verification, income_threshold, country_verification)
 3. Generate proving/verification keys
@@ -43,16 +44,19 @@ This will:
 ## Circuit Specifications
 
 ### age_verification.circom
+
 - **Inputs**: birthYear (private), currentYear (public), minAge (public)
 - **Output**: 1 if age >= minAge, 0 otherwise
 - **Size**: ~32-bit arithmetic
 
 ### income_threshold.circom
+
 - **Inputs**: income (private), threshold (public)
 - **Output**: 1 if income >= threshold
 - **Uses**: circomlib GreaterEqThan(32)
 
 ### country_verification.circom
+
 - **Inputs**: countryCode (private), targetCode (public)
 - **Output**: 1 if codes match
 - **Uses**: circomlib IsEqual()
@@ -60,6 +64,7 @@ This will:
 ## Development Without Artifacts
 
 The SDK includes mock proof generation for development. If artifacts are not present at runtime, the SDK will:
+
 - Return mock proof objects
 - Log warnings to console
 - Allow UI/flow testing without real ZK proofs
@@ -69,6 +74,7 @@ Production deployments should include real artifacts.
 ## Troubleshooting
 
 **Missing circomlib:**
+
 ```bash
 npm install -g circomlib
 ```
@@ -78,6 +84,7 @@ Download manually from https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_h
 
 **Out of memory during compilation:**
 Use a smaller ptau file (e.g., `powersOfTau28_hez_final_10.ptau`) or increase Node.js memory:
+
 ```bash
 export NODE_OPTIONS="--max-old-space-size=8192"
 ```

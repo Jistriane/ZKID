@@ -54,18 +54,21 @@ Substituímos comandos legados por comandos modernos do Stellar CLI:
 Para cada contrato, foram gerados:
 
 #### `packages/verifier/`
+
 - **src/index.ts** - Client class com métodos tipados
 - **package.json** - Configuração do pacote
 - **tsconfig.json** - Configuração TypeScript
 - ✅ Build bem-sucedido, sem vulnerabilidades
 
 #### `packages/credential_registry/`
+
 - **src/index.ts** - Client class com métodos tipados
 - **package.json** - Configuração do pacote
 - **tsconfig.json** - Configuração TypeScript
 - ✅ Build bem-sucedido, sem vulnerabilidades
 
 #### `packages/compliance_oracle/`
+
 - **src/index.ts** - Client class com métodos tipados
 - **package.json** - Configuração do pacote
 - **tsconfig.json** - Configuração TypeScript
@@ -74,12 +77,13 @@ Para cada contrato, foram gerados:
 ### 4. Integração no SDK (`sdk/zkid-sdk/`)
 
 #### `src/client/contracts.ts`
+
 Re-exporta os clientes gerados com constantes úteis:
 
 ```typescript
-export { Client as VerifierClient } from 'verifier';
-export { Client as CredentialRegistryClient } from 'credential_registry';
-export { Client as ComplianceOracleClient } from 'compliance_oracle';
+export { Client as VerifierClient } from 'verifier'
+export { Client as CredentialRegistryClient } from 'credential_registry'
+export { Client as ComplianceOracleClient } from 'compliance_oracle'
 
 export const ZKID_CONTRACTS = {
   testnet: {
@@ -88,10 +92,11 @@ export const ZKID_CONTRACTS = {
     complianceOracle: 'CDVZI3V7S3RIV3INQQRAPMR4FKIQJPR7NRJMDWET6LOSGBMFFCLLERVM',
     rpcUrl: 'https://soroban-testnet.stellar.org',
   },
-};
+}
 ```
 
 #### `package.json`
+
 Adicionadas dependências para os pacotes gerados:
 
 ```json
@@ -107,6 +112,7 @@ Adicionadas dependências para os pacotes gerados:
 ### 5. Exemplos de Uso (`sdk/zkid-sdk/examples/contract-usage.ts`)
 
 Criados exemplos completos demonstrando:
+
 - Inicialização de clientes
 - Operações de leitura (sem assinatura)
 - Operações de escrita (com assinatura)
@@ -116,6 +122,7 @@ Criados exemplos completos demonstrando:
 ### 6. Documentação (`sdk/zkid-sdk/README.md`)
 
 Documentação completa incluindo:
+
 - Quick Start
 - Exemplos de código
 - Referência de API para cada contrato
@@ -175,28 +182,25 @@ cd ../compliance_oracle && npm install && npm run build
 ### 2. Usar no Código
 
 ```typescript
-import { 
-  VerifierClient, 
-  ZKID_CONTRACTS 
-} from 'zkid-sdk/client/contracts';
-import { Networks } from '@stellar/stellar-sdk';
+import { VerifierClient, ZKID_CONTRACTS } from 'zkid-sdk/client/contracts'
+import { Networks } from '@stellar/stellar-sdk'
 
 const verifier = new VerifierClient({
   contractId: ZKID_CONTRACTS.testnet.verifier,
   networkPassphrase: Networks.TESTNET,
   rpcUrl: ZKID_CONTRACTS.testnet.rpcUrl,
-});
+})
 
 // Chamar método
-const versionTx = await verifier.version();
-const version = await versionTx.simulate();
+const versionTx = await verifier.version()
+const version = await versionTx.simulate()
 ```
 
 ### 3. Integrar no Frontend
 
 ```typescript
 // Em frontend/zkid-app/src/
-import { VerifierClient } from 'zkid-sdk/client/contracts';
+import { VerifierClient } from 'zkid-sdk/client/contracts'
 
 // Use os clientes tipados com autocomplete completo
 ```
@@ -208,7 +212,7 @@ import { VerifierClient } from 'zkid-sdk/client/contracts';
 ✅ **Documentação** - JSDoc gerado automaticamente dos contratos  
 ✅ **Manutenibilidade** - Clientes regenerados automaticamente ao alterar contratos  
 ✅ **Padrão da Indústria** - Usando ferramentas oficiais do Stellar  
-✅ **Zero Configuração Manual** - Tudo gerado automaticamente  
+✅ **Zero Configuração Manual** - Tudo gerado automaticamente
 
 ## Próximos Passos
 

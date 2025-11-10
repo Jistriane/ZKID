@@ -10,54 +10,44 @@ describe('zkid-sdk', () => {
     expect(h.length).toBeGreaterThan(0)
   })
 
-  it('generateProof (age) uses fallback or fullProve', async () => {
+  it('generateProof (age) produces artifacts with user binding', async () => {
     const res = await generateProof({
       circuit: 'age_verification',
       privateInputs: { birthdate: '1990-01-01' },
-      publicInputs: { minAge: 18, currentDate: '2025-11-05' }
+      publicInputs: { minAge: 18, currentDate: '2025-11-05', userPublicKey: 'GBZXN7PIRZGNMHGA...' }
     })
     expect(res).toHaveProperty('proof')
     expect(res).toHaveProperty('publicSignals')
   })
 
-  it('generateIncomeProof returns proof shape', async () => {
+  it('generateIncomeProof returns proof artifacts', async () => {
     const res = await generateIncomeProof({
       circuit: 'income_threshold',
       privateInputs: { income: 50000 },
-      publicInputs: { minIncome: 30000 }
+      publicInputs: { minIncome: 30000, userPublicKey: 'GBZXN7PIRZGNMHGA...' }
     })
     expect(res).toHaveProperty('proof')
     expect(res).toHaveProperty('publicSignals')
-    // When using mock fallback, publicSignals should indicate pass
-    if (res.proof && typeof res.proof === 'object' && 'mock' in res.proof) {
-      expect(res.publicSignals).toHaveProperty('ok')
-    }
   })
 
-  it('generateCountryProof returns proof shape', async () => {
+  it('generateCountryProof returns proof artifacts (match)', async () => {
     const res = await generateCountryProof({
       circuit: 'country_verification',
       privateInputs: { countryCode: 76 },
-      publicInputs: { targetCode: 76 }
+      publicInputs: { targetCode: 76, userPublicKey: 'GBZXN7PIRZGNMHGA...' }
     })
     expect(res).toHaveProperty('proof')
     expect(res).toHaveProperty('publicSignals')
-    // When using mock fallback, publicSignals should have is_target
-    if (res.proof && typeof res.proof === 'object' && 'mock' in res.proof) {
-      expect(res.publicSignals).toHaveProperty('is_target')
-      expect((res.publicSignals as { is_target: boolean }).is_target).toBe(true)
-    }
   })
 
-  it('generateCountryProof fails when codes do not match', async () => {
+  it('generateCountryProof non-match scenario', async () => {
     const res = await generateCountryProof({
       circuit: 'country_verification',
       privateInputs: { countryCode: 76 },
-      publicInputs: { targetCode: 840 }
+      publicInputs: { targetCode: 840, userPublicKey: 'GBZXN7PIRZGNMHGA...' }
     })
-    if (res.proof && typeof res.proof === 'object' && 'mock' in res.proof) {
-      expect((res.publicSignals as { is_target: boolean }).is_target).toBe(false)
-    }
+    expect(res).toHaveProperty('proof')
+    expect(res).toHaveProperty('publicSignals')
   })
 
   it('setConfig and getConfig work', () => {

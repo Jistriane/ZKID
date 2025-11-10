@@ -1,9 +1,10 @@
 1,1,2,main.is_target
 2,2,2,main.targetCode
-3,3,2,main.countryCode
-4,-1,1,main.eq.out
-5,-1,1,main.eq.in[0]
-6,-1,1,main.eq.in[1]
-7,-1,0,main.eq.isz.out
-8,4,0,main.eq.isz.in
-9,5,0,main.eq.isz.inv
+3,3,2,main.addrHash
+4,4,2,main.countryCode
+5,-1,1,main.eq.out
+6,-1,1,main.eq.in[0]
+7,-1,1,main.eq.in[1]
+8,-1,0,main.eq.isz.out
+9,5,0,main.eq.isz.in
+10,6,0,main.eq.isz.inv

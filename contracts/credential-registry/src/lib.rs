@@ -1,5 +1,19 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, contracterror, symbol_short, Bytes, BytesN, Env, Symbol, Address};
+use soroban_sdk::{contract, contractimpl, contracttype, contracterror, contractevent, symbol_short, Bytes, BytesN, Env, Symbol, Address};
+
+// Eventos do contrato
+#[contractevent]
+pub struct CredentialIssued {
+    pub owner: Address,
+    pub credential_id: Bytes,
+    pub expires_at: u64,
+}
+
+#[contractevent]
+pub struct CredentialRevoked {
+    pub owner: Address,
+    pub credential_id: Bytes,
+}
 
 // Erros do contrato
 #[contracterror]
@@ -35,11 +49,14 @@ impl CredentialRegistry {
         // Autenticação: owner deve aprovar a emissão
         owner.require_auth();
         
-        // ID determinístico a partir de proof_hash + timestamp
+        // ID determinístico a partir de proof_hash APENAS.
+        // IMPORTANTE: Não use valores não-determinísticos (ex.: timestamp) na composição da chave,
+        // pois isso invalida o footprint entre simulação e execução, causando traps do tipo
+        // "trying to access contract data key outside of the footprint".
+        // A expiração continuará baseada em timestamp, mas a chave em storage deve ser estável.
         let now = env.ledger().timestamp();
         let mut preimage = Bytes::new(&env);
         preimage.append(&proof_hash);
-        preimage.append(&Bytes::from_array(&env, &now.to_be_bytes()));
         let id: BytesN<32> = env.crypto().sha256(&preimage).into();
 
         let expires_at = now + ttl_seconds as u64;
@@ -55,10 +72,11 @@ impl CredentialRegistry {
         env.storage().persistent().set(&key, &cred);
 
         // Publicar evento
-        env.events().publish(
-            (symbol_short!("issued"), owner.clone()),
-            (id_bytes.clone(), expires_at)
-        );
+        CredentialIssued {
+            owner: owner.clone(),
+            credential_id: id_bytes.clone(),
+            expires_at,
+        }.publish(&env);
         
         id_bytes
     }
@@ -103,10 +121,10 @@ impl CredentialRegistry {
             cred.revoked = true;
             env.storage().persistent().set(&key, &cred);
             
-            env.events().publish(
-                (symbol_short!("revoked"), cred.owner.clone()),
-                credential_id.clone()
-            );
+            CredentialRevoked {
+                owner: cred.owner.clone(),
+                credential_id: credential_id.clone(),
+            }.publish(&env);
             
             Ok(())
         } else {

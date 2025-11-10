@@ -1,0 +1,48 @@
+/**
+ * ZKID Stellar Contract Clients
+ * 
+ * This module re-exports the auto-generated TypeScript clients for ZKID Soroban contracts.
+ * 
+ * Usage:
+ * ```typescript
+ * import { VerifierClient, CredentialRegistryClient, ComplianceOracleClient } from 'zkid-sdk/client/contracts';
+ * import { Networks } from '@stellar/stellar-sdk';
+ * 
+ * // Initialize a client
+ * const verifier = new VerifierClient({
+ *   contractId: 'CBMUOMXPCWVYYA75GR6AIJTMUR3W6VOBUQCXJ5GDPRURKDETODUKJWSC',
+ *   networkPassphrase: Networks.TESTNET,
+ *   rpcUrl: 'https://soroban-testnet.stellar.org',
+ * });
+ * 
+ * // Call a method
+ * const versionTx = await verifier.version();
+ * const result = await versionTx.signAndSend();
+ * ```
+ */
+
+// Re-export generated contract clients
+export { Client as VerifierClient } from 'verifier';
+export { Client as CredentialRegistryClient } from 'credential_registry';
+export { Client as ComplianceOracleClient } from 'compliance_oracle';
+
+// Re-export types from generated contracts
+export type { 
+  Groth16Proof,
+  VerificationKey,
+} from 'verifier';
+
+export type {
+  Credential,
+} from 'credential_registry';
+
+// Network configuration constants (updated from latest deployment)
+export const ZKID_CONTRACTS = {
+  testnet: {
+    verifier: 'CA64XL6ZGUEDN73SN2TAWHY5XBTWPO43K2HJ6YWV5VPV5V5UZRD6VUC4',
+    credentialRegistry: 'CA44F2HEN2UTJ3XLWTJ4QCON4FXUQJU3L5BFSXRM6UBWOXJAZ7VBTHIO',
+    complianceOracle: 'CDUTFVWQQWTD64HJVI3ZSVAOFSNVULQ2DDXCQRAG5FQGOOJUIZGCUX6G',
+    rpcUrl: 'https://soroban-testnet.stellar.org',
+  },
+} as const;
+

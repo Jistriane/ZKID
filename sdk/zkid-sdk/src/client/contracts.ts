@@ -36,12 +36,12 @@ export type {
   Credential,
 } from 'credential_registry';
 
-// Network configuration constants
+// Network configuration constants (updated from latest deployment)
 export const ZKID_CONTRACTS = {
   testnet: {
-    verifier: 'CBMUOMXPCWVYYA75GR6AIJTMUR3W6VOBUQCXJ5GDPRURKDETODUKJWSC',
-    credentialRegistry: 'CB4F5NMRYZ5GYTRPUOYDIU27J23NDNQCAWXZMAOWQ75OWQM7KOMAV7J5',
-    complianceOracle: 'CDVZI3V7S3RIV3INQQRAPMR4FKIQJPR7NRJMDWET6LOSGBMFFCLLERVM',
+    verifier: 'CBRT2F27KEXANOP6ILGF2TPFZJKYZCFCWSPCUCX3DQQOH4OBIAHTSJ5F',
+    credentialRegistry: 'CCMAZDIUOLR66I2CABKI34JPXYPSZPTJREVRSDAKBSUIZ2QG73QFGUK4',
+    complianceOracle: 'CDOTN2UWCG26J2LKKNVUVFYBBHRPSSD7D5Z7N6K5C5F4M3TK35WR67AC',
     rpcUrl: 'https://soroban-testnet.stellar.org',
   },
 } as const;

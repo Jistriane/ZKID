@@ -49,7 +49,7 @@ your-agent-project/
 
 ```typescript
 // src/character.ts
-import { Character } from '@elizaos/core';
+import { Character } from '@elizaos/core'
 
 export const character: Character = {
   // Basic Identity
@@ -101,11 +101,7 @@ Core principles:
       'Use appropriate emojis sparingly for warmth',
       'Ask follow-up questions to better understand needs',
     ],
-    post: [
-      'Be informative and engaging',
-      'Structure information clearly',
-      'Include actionable insights when possible',
-    ],
+    post: ['Be informative and engaging', 'Structure information clearly', 'Include actionable insights when possible'],
   },
 
   // Plugin Configuration
@@ -138,17 +134,17 @@ Core principles:
     intiface: false,
     chains: [],
   },
-};
+}
 
-export default character;
+export default character
 ```
 
 ### Character Variants Pattern
 
 ```typescript
 // characters/variants.ts
-import { Character } from '@elizaos/core';
-import { baseCharacter } from '../src/character';
+import { Character } from '@elizaos/core'
+import { baseCharacter } from '../src/character'
 
 // Production character
 export const productionCharacter: Character = {
@@ -158,7 +154,7 @@ export const productionCharacter: Character = {
     ...baseCharacter.settings,
     model: 'gpt-4', // More capable model for production
   },
-};
+}
 
 // Development character
 export const devCharacter: Character = {
@@ -172,7 +168,7 @@ export const devCharacter: Character = {
     ...baseCharacter.plugins,
     // Add development-only plugins
   ],
-};
+}
 
 // Specialized character
 export const cryptoCharacter: Character = {
@@ -180,7 +176,7 @@ export const cryptoCharacter: Character = {
   name: 'CryptoAgent',
   bio: 'A cryptocurrency and blockchain expert assistant',
   plugins: [...baseCharacter.plugins, '@elizaos/plugin-solana', '@elizaos/plugin-evm'],
-};
+}
 ```
 
 ## 🔌 Plugin Ecosystem
@@ -390,11 +386,11 @@ For project-specific functionality beyond available plugins:
 
 ```typescript
 // src/plugin.ts
-import { Plugin, Action, ActionResult, Service } from '@elizaos/core';
+import { Plugin, Action, ActionResult, Service } from '@elizaos/core'
 
 // Custom service for your specific needs
 class CustomService extends Service {
-  static serviceType = 'custom';
+  static serviceType = 'custom'
 
   async initialize(runtime: IAgentRuntime): Promise<void> {
     // Initialize your custom integrations
@@ -407,7 +403,7 @@ class CustomService extends Service {
       success: true,
       message: 'Custom request processed successfully',
       data: message.content,
-    };
+    }
   }
 }
 
@@ -417,20 +413,20 @@ const customAction: Action = {
   description: 'Handles custom functionality specific to this project',
 
   validate: async (runtime, message) => {
-    return message.content.text.includes('custom');
+    return message.content.text.includes('custom')
   },
 
   handler: async (runtime, message, state, options, callback): Promise<ActionResult> => {
     try {
-      const service = runtime.getService<CustomService>('custom');
+      const service = runtime.getService<CustomService>('custom')
       // Your custom logic here
-      const result = await service.processCustomRequest(message);
+      const result = await service.processCustomRequest(message)
 
       // Callback sends message to user in chat
       await callback({
         text: 'Custom functionality executed successfully',
         action: 'CUSTOM_ACTION',
-      });
+      })
 
       // Return ActionResult for action chaining
       return {
@@ -444,34 +440,34 @@ const customAction: Action = {
           actionName: 'CUSTOM_ACTION',
           result,
         },
-      };
+      }
     } catch (error) {
       await callback({
         text: 'Failed to execute custom action',
         error: true,
-      });
+      })
 
       return {
         success: false,
         error: error instanceof Error ? error : new Error(String(error)),
-      };
+      }
     }
   },
-};
+}
 
 export const customPlugin: Plugin = {
   name: 'custom-project-plugin',
   description: 'Project-specific functionality',
   services: [CustomService],
   actions: [customAction],
-};
+}
 ```
 
 ### Integrating Custom Plugin
 
 ```typescript
 // src/character.ts
-import { customPlugin } from './plugin';
+import { customPlugin } from './plugin'
 
 export const character: Character = {
   // ... other config
@@ -486,7 +482,7 @@ export const character: Character = {
 
     // Other plugins...
   ],
-};
+}
 ```
 
 ## 📊 Agent Memory & Persistence
@@ -505,14 +501,14 @@ const memories = await runtime.getMemories({
   roomId: currentRoomId,
   count: 10,
   unique: true,
-});
+})
 
 // Add custom memory:
 await runtime.addMemory({
   content: { text: 'Important user preference noted' },
   type: 'preference',
   roomId: currentRoomId,
-});
+})
 ```
 
 ### Database Configuration
@@ -577,7 +573,7 @@ export const character: Character = {
       },
     },
   ],
-};
+}
 ```
 
 ### Performance Optimization
@@ -599,7 +595,7 @@ export const character: Character = {
     streamingEnabled: true, // Stream responses
     batchSize: 5, // Batch API calls
   },
-};
+}
 ```
 
 ## 🐛 Troubleshooting Guide
