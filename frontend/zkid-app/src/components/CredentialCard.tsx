@@ -6,9 +6,12 @@ interface CredentialCardProps {
   issueDate: string
   expiryDate: string
   status: 'active' | 'pending' | 'revoked'
+  onView?: () => void
+  onRevoke?: () => Promise<void> | void
+  isRevoking?: boolean
 }
 
-export function CredentialCard({ id, type, issueDate, expiryDate, status }: CredentialCardProps) {
+export function CredentialCard({ id, type, issueDate, expiryDate, status, onView, onRevoke, isRevoking }: CredentialCardProps) {
   const statusClass = {
     active: 'badge-success',
     pending: 'badge-warning',
@@ -37,9 +40,22 @@ export function CredentialCard({ id, type, issueDate, expiryDate, status }: Cred
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button variant="secondary" size="sm" className="flex-1">View Details</Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="flex-1"
+          onClick={onView}
+        >View Details</Button>
         {status === 'active' && (
-          <Button variant="danger" size="sm" className="flex-1">Revoke</Button>
+          <Button
+            variant="danger"
+            size="sm"
+            className="flex-1"
+            disabled={isRevoking}
+            onClick={() => {
+              if (onRevoke && !isRevoking) onRevoke()
+            }}
+          >{isRevoking ? 'Revoking…' : 'Revoke'}</Button>
         )}
       </div>
     </div>

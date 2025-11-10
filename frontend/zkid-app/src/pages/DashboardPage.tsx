@@ -5,6 +5,7 @@ import { ComplianceAssistant } from '../components/ComplianceAssistant'
 import { Link } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
 import { fetchCredentials, fetchVerificationCount, Credential } from '../services/credentials'
+import { revokeCredentialService } from '../services/contracts'
 import { Button } from '../components/ui/Button'
 import { Card, CardContent } from '../components/ui/Card'
 
@@ -13,6 +14,8 @@ export function DashboardPage() {
   const [credentials, setCredentials] = useState<Credential[]>([])
   const [verificationCount, setVerificationCount] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
+  const [selected, setSelected] = useState<Credential | null>(null)
+  const [revoking, setRevoking] = useState<Record<string, boolean>>({})
 
   // Fetch credentials when wallet is connected
   useEffect(() => {
@@ -113,11 +116,90 @@ export function DashboardPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {credentials.map(cred => (
-              <CredentialCard key={cred.id} {...cred} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {credentials.map(cred => (
+                <CredentialCard
+                  key={cred.id}
+                  {...cred}
+                  onView={() => setSelected(cred)}
+                  isRevoking={!!revoking[cred.id]}
+                  onRevoke={async () => {
+                    if (!publicKey) return
+                    if (!cred.proofHash) {
+                      console.warn('[Dashboard] Credencial sem proofHash, não é possível revogar')
+                      return
+                    }
+                    if (!window.confirm('Revogar esta credencial? Esta ação não pode ser desfeita.')) {
+                      return
+                    }
+                    try {
+                      setRevoking(prev => ({ ...prev, [cred.id]: true }))
+                      const walletSign = async (xdr: string) => {
+                        type Freighter = { signTransaction?: (xdr: string, opts: { network: string }) => Promise<string | { signedTxXdr: string }> }
+                        const freighter: Freighter | undefined = (window as unknown as { freighter?: Freighter }).freighter
+                        if (!freighter?.signTransaction) throw new Error('Carteira não disponível')
+                        const networkLabel = network === 'mainnet' ? 'PUBLIC' : 'TESTNET'
+                        const res = await freighter.signTransaction(xdr, { network: networkLabel })
+                        return typeof res === 'string' ? res : res?.signedTxXdr
+                      }
+                      await revokeCredentialService(network, publicKey, cred.proofHash, walletSign)
+                      const updated = await fetchCredentials(publicKey, network)
+                      setCredentials(updated)
+                    } catch (err) {
+                      console.error('[Dashboard] Falha ao revogar credencial:', err)
+                      alert('Não foi possível revogar a credencial. Verifique sua carteira e tente novamente.')
+                    } finally {
+                      setRevoking(prev => ({ ...prev, [cred.id]: false }))
+                    }
+                  }}
+                />
+              ))}
+            </div>
+
+            {selected && (
+              <Card className="mt-6">
+                <CardContent>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="m-0 mb-2">Credential Details</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <div className="text-slate-400">Type</div>
+                          <div className="font-semibold">{selected.type}</div>
+                        </div>
+                        <div>
+                          <div className="text-slate-400">Status</div>
+                          <div className="font-semibold capitalize">{selected.status}</div>
+                        </div>
+                        <div>
+                          <div className="text-slate-400">ID</div>
+                          <div className="font-mono break-all">{selected.id}</div>
+                        </div>
+                        <div>
+                          <div className="text-slate-400">Proof Hash</div>
+                          <div className="font-mono break-all">{selected.proofHash || '—'}</div>
+                        </div>
+                        <div>
+                          <div className="text-slate-400">Issued on</div>
+                          <div className="font-semibold">{selected.issueDate}</div>
+                        </div>
+                        <div>
+                          <div className="text-slate-400">Expires on</div>
+                          <div className="font-semibold">{selected.expiryDate}</div>
+                        </div>
+                        <div className="md:col-span-2">
+                          <div className="text-slate-400">Issuer (Contract)</div>
+                          <div className="font-mono break-all">{selected.issuer || '—'}</div>
+                        </div>
+                      </div>
+                    </div>
+                    <Button variant="ghost" onClick={() => setSelected(null)}>Close</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </>
         )}
       </div>
     </div>

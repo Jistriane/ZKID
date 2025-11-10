@@ -461,6 +461,85 @@ export async function issueCredentialService(
   }
 }
 
+// Revoga credencial on-chain (owner somente). Retorna true se sucesso.
+export async function revokeCredentialService(
+  network: Network,
+  ownerPublicKey: string,
+  credentialIdHex: string,
+  walletSign: (xdr: string) => Promise<string>
+): Promise<boolean> {
+  const { rpcUrl } = createClients(network)
+  const networkPassphrase = network === 'mainnet'
+    ? 'Public Global Stellar Network ; September 2015'
+    : Networks.TESTNET
+  const env = getEnvContracts()
+  const cfg = ZKID_CONTRACTS.testnet
+
+  const registryWithSource = new CredentialRegistryClient({
+    contractId: env.registry || cfg.credentialRegistry,
+    networkPassphrase,
+    rpcUrl,
+    publicKey: ownerPublicKey,
+  })
+
+  const idBuf = Buffer.from(credentialIdHex.replace(/^0x/, ''), 'hex')
+  if (idBuf.length !== 32) {
+    throw new Error(`credential_id inválido: esperado 32 bytes, recebido ${idBuf.length}`)
+  }
+
+  console.log('[revokeCredential] Criando transação...')
+  const tx = await registryWithSource.revoke({
+    caller: ownerPublicKey,
+    credential_id: idBuf,
+  })
+
+  console.log('[revokeCredential] Simulando...')
+  await tx.simulate()
+  console.log('[revokeCredential] Simulação OK')
+
+  const preparedXdr = tx.built?.toXDR()
+  if (!preparedXdr) throw new Error('Transação não preparada')
+
+  try {
+    const signedXdr = await walletSign(preparedXdr)
+    let xdrString: string
+    if (typeof signedXdr === 'string') {
+      xdrString = signedXdr
+    } else if (signedXdr && typeof signedXdr === 'object' && 'signedTxXdr' in signedXdr) {
+      xdrString = (signedXdr as { signedTxXdr: string }).signedTxXdr
+    } else {
+      throw new Error('Formato de assinatura inválido')
+    }
+    console.log('[revokeCredential] Enviando para RPC...')
+    const sendResponse = await rawSendTransaction(rpcUrl, xdrString)
+    console.log('[revokeCredential] Resposta envio:', sendResponse)
+    if (sendResponse.status === 'ERROR') {
+      throw new Error(sendResponse.errorResult || 'Falha ao enviar transação')
+    }
+    if (sendResponse.status === 'PENDING' && sendResponse.hash) {
+      let attempts = 0
+      while (attempts < 30) {
+        await new Promise(r => setTimeout(r, 1000))
+        const txResp = await rawGetTransaction(rpcUrl, sendResponse.hash)
+        if (txResp.status === 'SUCCESS') {
+          console.log('[revokeCredential] ✅ Revogada!')
+          return true
+        }
+        if (txResp.status === 'FAILED') {
+          throw new Error('Transação de revogação falhou')
+        }
+        attempts++
+      }
+      throw new Error('Timeout aguardando confirmação da revogação')
+    }
+    // Se não for PENDING consideramos concluída
+    return true
+  } catch (err) {
+    console.error('[revokeCredential] Erro:', err)
+    throw err
+  }
+}
+
 export async function isCredentialValidService(network: Network, credentialIdHex: string): Promise<boolean> {
   const { registry } = createClients(network)
   const tx = await registry.is_valid({ credential_id: Buffer.from(credentialIdHex.replace(/^0x/, ''), 'hex') })
