@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { generateProof } from 'zkid-sdk'
 import { ensureCircuitArtifacts } from '../services/circuitsPreload'
 import { issueCredentialService, verifyIdentityProofService } from '../services/contracts'
+import { storeCredentialLocally } from '../services/credentials'
 import { getWalletSigner } from '../services/wallet'
 import { Card, CardContent } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
@@ -59,6 +60,15 @@ export function AgeProofPage() {
         proofHashHex,
         60 * 60 * 24 * 365,
         walletSign
+      )
+
+      // ✅ Armazena credencial localmente para exibição no dashboard
+      storeCredentialLocally(
+        publicKey!,
+        signedId,
+        proofHashHex,
+        'Age Verification',
+        60 * 60 * 24 * 365
       )
 
       setCredentialId(signedId)

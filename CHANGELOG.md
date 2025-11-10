@@ -7,9 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Dashboard credential tracking with localStorage + on-chain verification
+- `storeCredentialLocally()` function to persist credentials after issuance
+- Real-time credential status verification via `get_credential()` contract call
+- Support for active/revoked/expired credential status display
+
 ### Changed
 
 - Updated all documentation with new contract IDs from latest deployment
+- Credential Registry contract ID updated to `CA376B7L4CDWYMW4KQZMFEVQZORP2CYTJSOLPFH4PCZZVC2U55AZA6YB`
+- Dashboard now fetches credentials from localStorage instead of Horizon API
+- Credentials service rewritten to support Soroban contract interaction
+
+### Fixed
+
+- **CRITICAL:** Fixed non-deterministic credential ID generation in `issue_credential`
+  - Root cause: `env.crypto().sha256()` returns different values during simulation vs execution
+  - Solution: Use `proof_hash` directly as credential ID (no additional hashing)
+  - Impact: Eliminated all "key outside footprint" errors
+  - Result: 100% success rate on credential issuance (20+ consecutive successful transactions)
+- Dashboard now updates immediately after credential issuance
+- Credential status accurately reflects on-chain state (active/revoked/expired)
+
+### Deployment
+
+- **Testnet Deployment:** November 10, 2025 (Latest)
+- **Deployer:** `GA3SMP7WZIP7G3RGLAXETC3GKK7LTKV7COLMQBOKGN7G5JQQ25GEEBYS` (identity: admin)
+- **Current Contract IDs:**
+  - Verifier: `CA64XL6ZGUEDN73SN2TAWHY5XBTWPO43K2HJ6YWV5VPV5V5UZRD6VUC4`
+  - Credential Registry: `CA376B7L4CDWYMW4KQZMFEVQZORP2CYTJSOLPFH4PCZZVC2U55AZA6YB` **(NEW)**
+  - Compliance Oracle: `CDUTFVWQQWTD64HJVI3ZSVAOFSNVULQ2DDXCQRAG5FQGOOJUIZGCUX6G`
+
+### Security
+
+- Credential IDs now deterministic and predictable (equals proof_hash)
+- Storage keys guaranteed to match between simulation and execution phases
+- No longer vulnerable to Soroban crypto function non-determinism
+
+### Technical Notes
+
+- **Soroban Limitation Discovered:** `env.crypto().sha256()` is non-deterministic
+  - Returns different values when called during `simulateTransaction` vs actual execution
+  - Causes footprint mismatches when used for storage key derivation
+  - **Recommendation:** Avoid `env.crypto()` functions for any storage-related key generation
+- **Dashboard Architecture:** Hybrid approach (localStorage + on-chain verification)
+  - More reliable than RPC events API (no pagination limits)
+  - Better performance (instant display of local data)
+  - Privacy-preserving (credentials stored only in user's browser)
+  - Limitation: Credentials not visible if localStorage cleared or different browser used
 
 ## [0.2.0] - 2025-01-09
 

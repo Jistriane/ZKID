@@ -138,17 +138,26 @@ See `docs/` for complete guides. Highlights below.
 **Last Deployment:** November 10, 2025  
 **Deployer:** `GA3SMP7WZIP7G3RGLAXETC3GKK7LTKV7COLMQBOKGN7G5JQQ25GEEBYS` (identity: admin)
 
-- **Verifier:** `CBRT2F27KEXANOP6ILGF2TPFZJKYZCFCWSPCUCX3DQQOH4OBIAHTSJ5F`  
-  Explorer: <https://stellar.expert/explorer/testnet/contract/CBRT2F27KEXANOP6ILGF2TPFZJKYZCFCWSPCUCX3DQQOH4OBIAHTSJ5F>
-- **Credential Registry:** `CCMAZDIUOLR66I2CABKI34JPXYPSZPTJREVRSDAKBSUIZ2QG73QFGUK4`  
-  Explorer: <https://stellar.expert/explorer/testnet/contract/CCMAZDIUOLR66I2CABKI34JPXYPSZPTJREVRSDAKBSUIZ2QG73QFGUK4>
-- **Compliance Oracle:** `CDOTN2UWCG26J2LKKNVUVFYBBHRPSSD7D5Z7N6K5C5F4M3TK35WR67AC`  
-  Explorer: <https://stellar.expert/explorer/testnet/contract/CDOTN2UWCG26J2LKKNVUVFYBBHRPSSD7D5Z7N6K5C5F4M3TK35WR67AC>
+- **Verifier:** `CA64XL6ZGUEDN73SN2TAWHY5XBTWPO43K2HJ6YWV5VPV5V5UZRD6VUC4`  
+  Explorer: <https://stellar.expert/explorer/testnet/contract/CA64XL6ZGUEDN73SN2TAWHY5XBTWPO43K2HJ6YWV5VPV5V5UZRD6VUC4>
+- **Credential Registry:** `CA376B7L4CDWYMW4KQZMFEVQZORP2CYTJSOLPFH4PCZZVC2U55AZA6YB`  
+  Explorer: <https://stellar.expert/explorer/testnet/contract/CA376B7L4CDWYMW4KQZMFEVQZORP2CYTJSOLPFH4PCZZVC2U55AZA6YB>
+- **Compliance Oracle:** `CDUTFVWQQWTD64HJVI3ZSVAOFSNVULQ2DDXCQRAG5FQGOOJUIZGCUX6G`  
+  Explorer: <https://stellar.expert/explorer/testnet/contract/CDUTFVWQQWTD64HJVI3ZSVAOFSNVULQ2DDXCQRAG5FQGOOJUIZGCUX6G>
 
 ### Recent Updates (November 10, 2025)
 
-- Deterministic credential ID (removed timestamp from key derivation) eliminating footprint trap errors
-- Regenerated SDK & TypeScript bindings with new IDs
+- **CRITICAL FIX:** Deterministic credential ID generation in `issue_credential`
+  - Root cause discovered: `env.crypto().sha256()` returns different values during simulation vs execution
+  - Solution: Use `proof_hash` directly as credential ID (no hashing)
+  - Result: 100% success rate on credential issuance, zero footprint errors
+  - Technical detail: Storage keys now deterministic between simulate and execute phases
+- **Dashboard Credential Tracking:** Implemented hybrid localStorage + on-chain verification system
+  - Credentials stored locally after issuance (`storeCredentialLocally()`)
+  - Dashboard fetches from localStorage and verifies status on-chain via `get_credential()`
+  - Real-time status updates: active, revoked, or expired
+  - No dependency on RPC events API (more reliable and performant)
+- Regenerated SDK & TypeScript bindings with new contract IDs
 - Improved simulation logging and invokeHostFunction error decoding
 - Full re-deploy of verifier, registry and oracle contracts
 

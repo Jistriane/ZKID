@@ -148,37 +148,8 @@ type GetTxResult = {
 async function rawGetTransaction(rpcUrl: string, hash: string): Promise<GetTxResult> {
   return jsonRpc(rpcUrl, 'getTransaction', { hash })
 }
-// Opcional: preparar transação via JSON-RPC (em versões recentes do Soroban RPC)
-type PrepareTxResult = { preparedTransaction?: string; minResourceFee?: string; latestLedger?: number }
-async function rawPrepareTransaction(rpcUrl: string, xdr: string): Promise<PrepareTxResult | null> {
-  try {
-    return await jsonRpc<PrepareTxResult>(rpcUrl, 'prepareTransaction', { transaction: xdr })
-  } catch {
-    return null
-  }
-}
 
-async function prepareTxWithFallback(rpcUrl: string, networkPassphrase: string, builtXdr: string): Promise<string> {
-  // 1) Tenta JSON-RPC prepareTransaction (preferido)
-  const rpcPrepared = await rawPrepareTransaction(rpcUrl, builtXdr)
-  if (rpcPrepared && rpcPrepared.preparedTransaction) {
-    return rpcPrepared.preparedTransaction
-  }
-  // 2) Fallback: usa Server.prepareTransaction com Transaction do mesmo SDK importado.
-  try {
-    const [sdk, rpc] = await Promise.all([
-      import('@stellar/stellar-sdk'),
-      import('@stellar/stellar-sdk/rpc'),
-    ])
-    const txObj = sdk.TransactionBuilder.fromXDR(builtXdr, networkPassphrase)
-    const server = new (rpc as any).Server(rpcUrl)
-    const preparedTx = await server.prepareTransaction(txObj)
-    return preparedTx.toXDR()
-  } catch {
-    // 3) Último recurso: retorna o built original (pode falhar com footprint, mas não quebra fluxo)
-    return builtXdr
-  }
-}
+// Tipos e funções de preparação removidos - não usados
 
 export function createClients(network: Network) {
   const useMainnet = network === 'mainnet'
@@ -357,7 +328,6 @@ export async function issueCredentialService(
   ttlSeconds: number,
   walletSign: (xdr: string) => Promise<string>
 ): Promise<string> {
-  // ✅ CRITICAL: Recria o client com publicKey para definir source da tx
   const { rpcUrl } = createClients(network)
   const networkPassphrase = network === 'mainnet'
     ? 'Public Global Stellar Network ; September 2015'
@@ -369,76 +339,39 @@ export async function issueCredentialService(
     contractId: env.registry || cfg.credentialRegistry,
     networkPassphrase,
     rpcUrl,
-    publicKey: ownerPublicKey, // ✅ Define o source da tx como a carteira conectada
+    publicKey: ownerPublicKey,
   })
   
-  console.log('[issueCredential] Criando transação sem simulação automática...')
-  
-  // ✅ IMPORTANTE: Aguarda um pouco para garantir que a tx anterior foi processada
   console.log('[issueCredential] Aguardando 2s para garantir que verify_identity_proof foi processado...')
   await new Promise(r => setTimeout(r, 2000))
   
-  // Verifica integridade do hash passado (commitment deve ter 32 bytes)
   const proofBuf = Buffer.from(proofCommitmentHex.replace(/^0x/, ''), 'hex')
   if (proofBuf.length !== 32) {
     throw new Error(`proof_hash inválido: esperado 32 bytes, recebido ${proofBuf.length}`)
   }
 
-  const tx = await registryWithSource.issue_credential(
-    {
-      owner: ownerPublicKey,
-      proof_hash: proofBuf,
-      ttl_seconds: ttlSeconds,
-    },
-    {
-      simulate: false, // ✅ Evita erro do SDK (faremos simulação manual)
-    }
-  )
+  console.log('[issueCredential] proof_hash recebido:', proofCommitmentHex)
+  console.log('[issueCredential] proof_hash bytes:', Array.from(proofBuf))
+  console.log('[issueCredential] Criando transação...')
+  const tx = await registryWithSource.issue_credential({
+    owner: ownerPublicKey,
+    proof_hash: proofBuf,
+    ttl_seconds: ttlSeconds,
+  })
   
-  // Simula manualmente
-  console.log('[issueCredential] Simulando...')
+  // ✅ CRÍTICO: simulate() do cliente JÁ PREPARA a transação com footprint!
+  console.log('[issueCredential] Simulando transação (cliente prepara footprint automaticamente)...')
   await tx.simulate()
-  console.log('[issueCredential] Simulação OK')
-  // Diagnóstico adicional se o client expuser dados da simulação
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sim: any = (tx as any).simulation || (tx as any).lastSimulation
-  if (sim) {
-    try {
-      console.log('[issueCredential] Simulation fee:', sim.minResourceFee, 'result:', sim.result)
-      if (sim.transactionData) {
-        console.log('[issueCredential] Footprint entries:',
-          (sim.transactionData.resources || sim.transactionData).footprint?.readOnly?.length,
-          (sim.transactionData.resources || sim.transactionData).footprint?.readWrite?.length)
-      }
-    } catch (e) {
-      console.log('[issueCredential] Falha ao logar detalhes da simulação:', e)
-    }
-  }
+  console.log('[issueCredential] Simulação OK - transação preparada com footprint!')
 
-  // Alguns SDKs precisam rebuild depois da simulação para incorporar footprint/auth
-  // Tentamos chamar build() se existir.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if ((tx as any).build) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (tx as any).build()
-      console.log('[issueCredential] Transação rebuild após simulação.')
-    } catch (e) {
-      console.warn('[issueCredential] build() pós-simulação falhou ou não necessário:', e)
-    }
-  }
+  // ✅ USA o XDR já preparado pelo cliente (que JÁ TEM footprint após simulate)
+  const preparedXdr = tx.built?.toXDR()
+  if (!preparedXdr) throw new Error('Transação não foi preparada corretamente')
   
-  // Envia manualmente (com prepareTransaction para incluir footprint/auth)
+  console.log('[issueCredential] XDR preparado (primeiros 200 chars):', preparedXdr.substring(0, 200))
+  
   try {
-  // JSON-RPC direto
-    
-  // Garante que pegamos XDR após simulação/rebuild
-  const builtXdr = tx.built?.toXDR()
-    if (!builtXdr) throw new Error('Transação não preparada')
-    // Prepara a transação para incluir footprint/sorobanAuth
-    const preparedXdr = await prepareTxWithFallback(rpcUrl, networkPassphrase, builtXdr)
-    
-    console.log('[issueCredential] Solicitando assinatura...')
+    console.log('[issueCredential] Solicitando assinatura (XDR já tem footprint)...')
     const signedXdr = await walletSign(preparedXdr)
     
     let xdrString: string
@@ -450,59 +383,81 @@ export async function issueCredentialService(
       throw new Error('Formato de assinatura inválido')
     }
     
-  // (Nenhuma necessidade de importar stellar-sdk aqui; envio via XDR direto)
-  console.log('[issueCredential] Enviando para RPC (JSON-RPC)...')
-  const sendResponse = await rawSendTransaction(rpcUrl, xdrString)
+    console.log('[issueCredential] Enviando para RPC...')
+    const sendResponse = await rawSendTransaction(rpcUrl, xdrString)
+    console.log('[issueCredential] Resposta do envio:', sendResponse)
     
     if (sendResponse.status === 'ERROR') {
-      throw new Error(`Falha: ${sendResponse.errorResult}`)
+      let errorMsg = sendResponse.errorResult || JSON.stringify(sendResponse)
+      
+      // Tenta decodificar errorResultXdr se disponível
+      const responseObj = sendResponse as unknown as { errorResultXdr?: string }
+      if (responseObj.errorResultXdr) {
+        try {
+          const SDK = await import('@stellar/stellar-sdk')
+          const errorXdr = SDK.xdr.TransactionResult.fromXDR(responseObj.errorResultXdr, 'base64')
+          console.error('[issueCredential] ErrorXDR decodificado:', errorXdr)
+          
+          // Tenta extrair código de erro
+          const resultCode = errorXdr.result().switch()
+          console.error('[issueCredential] Código do erro:', resultCode)
+          
+          errorMsg = `Erro RPC: ${resultCode.name || resultCode.value || 'desconhecido'} (XDR: ${responseObj.errorResultXdr})`
+        } catch (decodeErr) {
+          console.error('[issueCredential] Erro ao decodificar XDR:', decodeErr)
+        }
+      }
+      
+      console.error('[issueCredential] Erro no envio:', errorMsg)
+      throw new Error(`Falha ao enviar transação: ${errorMsg}`)
     }
     
     // Aguarda confirmação
     if (sendResponse.status === 'PENDING' && sendResponse.hash) {
+      console.log('[issueCredential] Aguardando confirmação...')
       let attempts = 0
       while (attempts < 30) {
         await new Promise(r => setTimeout(r, 1000))
         const txResponse = await rawGetTransaction(rpcUrl, sendResponse.hash as string)
-        console.log('[issueCredential] Status da tx:', txResponse.status)
+        console.log('[issueCredential] Status:', txResponse.status)
+        
         if (txResponse.status === 'SUCCESS') {
-          console.log('[issueCredential] Confirmado!')
-          break
+          console.log('[issueCredential] ✅ SUCESSO!')
+          return `cred_${proofCommitmentHex.slice(2, 14)}`
         }
+        
         if (txResponse.status === 'FAILED') {
-          console.error('[issueCredential] Transação FALHOU on-chain. Detalhes:', txResponse)
-          // Decodificação básica dos XDRs se existirem em base64
+          console.error('[issueCredential] ❌ FALHOU:', txResponse)
+          
+          // Diagnóstico
           try {
-            // Import usado dentro dos blocos try/catch de parsing
-            const stellarSdk = await import('@stellar/stellar-sdk')
-            const resultXdr = (txResponse as unknown as { resultXdr?: string }).resultXdr
-            const resultMetaXdr = (txResponse as unknown as { resultMetaXdr?: string }).resultMetaXdr
-            if (typeof resultXdr === 'string') {
-              console.error('[issueCredential] resultXdr base64:', resultXdr)
-              try {
-                const txResult = stellarSdk.xdr.TransactionResult.fromXDR(resultXdr, 'base64')
-                console.error('[issueCredential] TransactionResult parseado:', txResult)
-              } catch (e) {
-                console.error('[issueCredential] Falha ao parsear TransactionResult:', e)
+            const resultMetaXdr = (txResponse as { resultMetaXdr?: string }).resultMetaXdr
+            if (resultMetaXdr) {
+              const metaStr = atob(resultMetaXdr)
+              if (/outside of the footprint/i.test(metaStr)) {
+                console.error('[issueCredential] ERRO: Chave fora do footprint')
+              }
+              if (/put_contract_data/i.test(metaStr)) {
+                console.error('[issueCredential] ERRO: Falha ao gravar dados')
               }
             }
-            if (typeof resultMetaXdr === 'string') {
-              console.error('[issueCredential] resultMetaXdr base64:', resultMetaXdr)
-            }
-          } catch (decodeErr) {
-            console.error('[issueCredential] Erro ao decodificar XDR:', decodeErr)
+          } catch (e) {
+            console.error('[issueCredential] Erro no diagnóstico:', e)
           }
-          throw new Error(`Transação falhou on-chain. Verifique os logs do console para mais detalhes. Hash: ${sendResponse.hash}`)
+          
+          throw new Error(`Transação falhou. Hash: ${sendResponse.hash}`)
         }
+        
         attempts++
       }
+      
+      throw new Error('Timeout aguardando confirmação')
     }
     
-    console.log('[issueCredential] Sucesso! Gerando ID...')
     return `cred_${proofCommitmentHex.slice(2, 14)}`
-  } catch (err) {
-    console.error('[issueCredential] Erro:', err)
-    throw new Error(humanizeSorobanSignerError(err))
+  } catch (error) {
+    console.error('[issueCredential] ❌ ERRO GERAL:', error)
+    throw error
   }
 }
 

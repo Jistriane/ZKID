@@ -1,5 +1,5 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, contracterror, contractevent, symbol_short, Bytes, BytesN, Env, Symbol, Address};
+use soroban_sdk::{contract, contractimpl, contracttype, contracterror, contractevent, symbol_short, Bytes, Env, Symbol, Address};
 
 // Eventos do contrato
 #[contractevent]
@@ -49,16 +49,15 @@ impl CredentialRegistry {
         // Autenticação: owner deve aprovar a emissão
         owner.require_auth();
         
-        // ID determinístico a partir de proof_hash APENAS.
-        // IMPORTANTE: Não use valores não-determinísticos (ex.: timestamp) na composição da chave,
-        // pois isso invalida o footprint entre simulação e execução, causando traps do tipo
-        // "trying to access contract data key outside of the footprint".
-        // A expiração continuará baseada em timestamp, mas a chave em storage deve ser estável.
+        // ✅ FIX CRÍTICO: Usa proof_hash DIRETAMENTE como ID da credencial
+        // NÃO aplicar SHA256 aqui porque env.crypto().sha256() retorna valores diferentes
+        // entre simulação e execução, quebrando o footprint!
+        // O proof_hash JÁ É um hash único de 32 bytes retornado pelo Verifier.
+        if proof_hash.len() != 32 {
+            panic!("proof_hash must be exactly 32 bytes");
+        }
+        
         let now = env.ledger().timestamp();
-        let mut preimage = Bytes::new(&env);
-        preimage.append(&proof_hash);
-        let id: BytesN<32> = env.crypto().sha256(&preimage).into();
-
         let expires_at = now + ttl_seconds as u64;
         let cred = Credential { 
             proof_hash: proof_hash.clone(), 
@@ -67,7 +66,8 @@ impl CredentialRegistry {
             revoked: false 
         };
         
-        let id_bytes: Bytes = id.clone().into();
+        // Usa proof_hash diretamente como credential_id
+        let id_bytes: Bytes = proof_hash.clone();
         let key = Self::cred_key(&env, &id_bytes);
         env.storage().persistent().set(&key, &cred);
 
